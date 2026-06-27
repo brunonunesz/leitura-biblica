@@ -330,6 +330,7 @@ textarea.fi{min-height:140px;resize:vertical;line-height:1.6;font-family:inherit
   </div>
 </div>
 
+<script src="biblia.js"></script>
 <script>
 const SCRIPT = "https://script.google.com/macros/s/AKfycbw8InWSnsnFO5CDRVTw2UlBuSAnfW16OfxjP4i4nvkXRfYzVm9Y629A67Ds_-Fij5m1/exec";
 const LS_USER = "bib_adm_user";
@@ -338,14 +339,7 @@ const LS_PASS = "bib_adm_pass";
 let sessao = null; // { usuario, senha, nome, papel, role }
 
 // Livros da Bíblia (código USFM, nome, nº de capítulos) — para o seletor de trecho
-const LIVROS=[["GEN","Gênesis",50],["EXO","Êxodo",40],["LEV","Levítico",27],["NUM","Números",36],["DEU","Deuteronômio",34],["JOS","Josué",24],["JDG","Juízes",21],["RUT","Rute",4],["1SA","1 Samuel",31],["2SA","2 Samuel",24],["1KI","1 Reis",22],["2KI","2 Reis",25],["1CH","1 Crônicas",29],["2CH","2 Crônicas",36],["EZR","Esdras",10],["NEH","Neemias",13],["EST","Ester",10],["JOB","Jó",42],["PSA","Salmos",150],["PRO","Provérbios",31],["ECC","Eclesiastes",12],["SNG","Cantares",8],["ISA","Isaías",66],["JER","Jeremias",52],["LAM","Lamentações",5],["EZK","Ezequiel",48],["DAN","Daniel",12],["HOS","Oséias",14],["JOL","Joel",3],["AMO","Amós",9],["OBA","Obadias",1],["JON","Jonas",4],["MIC","Miquéias",7],["NAM","Naum",3],["HAB","Habacuque",3],["ZEP","Sofonias",3],["HAG","Ageu",2],["ZEC","Zacarias",14],["MAL","Malaquias",4],["MAT","Mateus",28],["MRK","Marcos",16],["LUK","Lucas",24],["JHN","João",21],["ACT","Atos",28],["ROM","Romanos",16],["1CO","1 Coríntios",16],["2CO","2 Coríntios",13],["GAL","Gálatas",6],["EPH","Efésios",6],["PHP","Filipenses",4],["COL","Colossenses",4],["1TH","1 Tessalonicenses",5],["2TH","2 Tessalonicenses",3],["1TI","1 Timóteo",6],["2TI","2 Timóteo",4],["TIT","Tito",3],["PHM","Filemom",1],["HEB","Hebreus",13],["JAS","Tiago",5],["1PE","1 Pedro",5],["2PE","2 Pedro",3],["1JN","1 João",5],["2JN","2 João",1],["3JN","3 João",1],["JUD","Judas",1],["REV","Apocalipse",22]];
-const LIVRO_MAP={}; LIVROS.forEach(([id,nome,caps])=>LIVRO_MAP[id]={nome,caps});
-function refLabel(m){
-  const nome=LIVRO_MAP[m.livro]?.nome||m.livro||"?";
-  const ini=m.cap_ini||0, fim=m.cap_fim||ini;
-  if(!ini) return nome;
-  return fim>ini ? `${nome} ${ini}–${fim}` : `${nome} ${ini}`;
-}
+// LIVROS, refLabel, livroCaps/livroNome vêm de biblia.js (fonte única).
 function popularLivros(){
   const opts=LIVROS.map(([id,nome])=>`<option value="${id}">${nome}</option>`).join("");
   ["f-livro","edit-livro"].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=opts; });
@@ -426,11 +420,11 @@ async function publicar(){
   const tipo   = document.getElementById("f-tipo").value;
   const titulo = document.getElementById("f-titulo").value.trim();
   const texto  = document.getElementById("f-texto").value.trim();
-  const maxCap = LIVRO_MAP[livro]?.caps||999;
+  const maxCap = livroCaps(livro)||999;
   if(!livro)                 { alertPane("pub","err","Escolha um livro.");     return; }
   if(!capIni||capIni<1)      { alertPane("pub","err","Capítulo inicial inválido."); return; }
   if(capFim<capIni)          { alertPane("pub","err","Capítulo final menor que o inicial."); return; }
-  if(capFim>maxCap)          { alertPane("pub","err",`${LIVRO_MAP[livro].nome} tem só ${maxCap} capítulos.`); return; }
+  if(capFim>maxCap)          { alertPane("pub","err",`${livroNome(livro)} tem só ${maxCap} capítulos.`); return; }
   if(!titulo)                { alertPane("pub","err","Título obrigatório.");   return; }
   if(texto.length<30)        { alertPane("pub","err","Texto muito curto (mínimo 30 caracteres)."); return; }
   const btn=document.getElementById("pub-btn");
@@ -698,11 +692,11 @@ async function salvarEdicao(){
   const tipo=document.getElementById("edit-tipo").value;
   const titulo=document.getElementById("edit-titulo").value.trim();
   const texto=document.getElementById("edit-texto").value.trim();
-  const maxCap=LIVRO_MAP[livro]?.caps||999;
+  const maxCap=livroCaps(livro)||999;
   if(!livro){editAlert("err","Escolha um livro.");return;}
   if(!capIni||capIni<1){editAlert("err","Capítulo inicial inválido.");return;}
   if(capFim<capIni){editAlert("err","Capítulo final menor que o inicial.");return;}
-  if(capFim>maxCap){editAlert("err",`${LIVRO_MAP[livro].nome} tem só ${maxCap} capítulos.`);return;}
+  if(capFim>maxCap){editAlert("err",`${livroNome(livro)} tem só ${maxCap} capítulos.`);return;}
   if(!titulo){editAlert("err","Título obrigatório.");return;}
   if(texto.length<30){editAlert("err","Texto muito curto (mínimo 30 caracteres).");return;}
   const btn=document.getElementById("edit-save-btn");
