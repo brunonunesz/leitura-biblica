@@ -194,6 +194,16 @@ const SCRIPT = "https://script.google.com/macros/s/AKfycbw8InWSnsnFO5CDRVTw2UlBu
 const LS_NOME = "bib_nome_med";
 const LS_ADMIN = "bib_admin";
 
+// Livros da Bíblia (código USFM, nome) em ordem canônica — para agrupar/rotular trechos
+const LIVROS=[["GEN","Gênesis"],["EXO","Êxodo"],["LEV","Levítico"],["NUM","Números"],["DEU","Deuteronômio"],["JOS","Josué"],["JDG","Juízes"],["RUT","Rute"],["1SA","1 Samuel"],["2SA","2 Samuel"],["1KI","1 Reis"],["2KI","2 Reis"],["1CH","1 Crônicas"],["2CH","2 Crônicas"],["EZR","Esdras"],["NEH","Neemias"],["EST","Ester"],["JOB","Jó"],["PSA","Salmos"],["PRO","Provérbios"],["ECC","Eclesiastes"],["SNG","Cantares"],["ISA","Isaías"],["JER","Jeremias"],["LAM","Lamentações"],["EZK","Ezequiel"],["DAN","Daniel"],["HOS","Oséias"],["JOL","Joel"],["AMO","Amós"],["OBA","Obadias"],["JON","Jonas"],["MIC","Miquéias"],["NAM","Naum"],["HAB","Habacuque"],["ZEP","Sofonias"],["HAG","Ageu"],["ZEC","Zacarias"],["MAL","Malaquias"],["MAT","Mateus"],["MRK","Marcos"],["LUK","Lucas"],["JHN","João"],["ACT","Atos"],["ROM","Romanos"],["1CO","1 Coríntios"],["2CO","2 Coríntios"],["GAL","Gálatas"],["EPH","Efésios"],["PHP","Filipenses"],["COL","Colossenses"],["1TH","1 Tessalonicenses"],["2TH","2 Tessalonicenses"],["1TI","1 Timóteo"],["2TI","2 Timóteo"],["TIT","Tito"],["PHM","Filemom"],["HEB","Hebreus"],["JAS","Tiago"],["1PE","1 Pedro"],["2PE","2 Pedro"],["1JN","1 João"],["2JN","2 João"],["3JN","3 João"],["JUD","Judas"],["REV","Apocalipse"]];
+const LIVRO_NOME={}, LIVRO_ORD={}; LIVROS.forEach(([id,nome],i)=>{LIVRO_NOME[id]=nome;LIVRO_ORD[id]=i;});
+function refLabel(m){
+  const nome=LIVRO_NOME[m.livro]||m.livro||"?";
+  const ini=m.cap_ini||0, fim=m.cap_fim||ini;
+  if(!ini) return nome;
+  return fim>ini ? `${nome} ${ini}–${fim}` : `${nome} ${ini}`;
+}
+
 let nome = localStorage.getItem(LS_NOME) || "";
 let todasMeds = [];
 let curtidasLocais = {};
@@ -247,6 +257,8 @@ async function carregarMeditacoes() {
     document.getElementById("s-count").textContent = todasMeds.length + " publicações";
     renderNav();
     renderMeds();
+    // se veio de um link com âncora (#livro-XXX), rola até a seção após renderizar
+    if(location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView({behavior:"smooth",block:"start"});
   } catch(e) {
     setStatus("off", "Erro ao carregar");
     document.getElementById("content").innerHTML =
@@ -255,10 +267,11 @@ async function carregarMeditacoes() {
 }
 
 function renderNav() {
-  const dias = [...new Set(todasMeds.map(m => m.dia))].sort((a,b)=>a-b);
+  const livros = [...new Set(todasMeds.map(m => m.livro))].filter(Boolean)
+    .sort((a,b)=>(LIVRO_ORD[a]??999)-(LIVRO_ORD[b]??999));
   const nav = document.getElementById("dia-nav");
-  nav.innerHTML = dias.map(d =>
-    `<span class="dia-pill has-med" onclick="scrollToDia(${d})">Dia ${d}</span>`
+  nav.innerHTML = livros.map(l =>
+    `<span class="dia-pill has-med" onclick="scrollToLivro('${l}')">${LIVRO_NOME[l]||l}</span>`
   ).join("");
 }
 
@@ -278,20 +291,20 @@ function renderMeds() {
       `<div class="empty"><h3>Nenhuma meditação ainda</h3><p>As primeiras publicações aparecerão aqui.</p></div>`;
     return;
   }
-  // Agrupar por dia
-  const porDia = {};
+  // Agrupar por livro
+  const porLivro = {};
   for (const m of meds) {
-    if (!porDia[m.dia]) porDia[m.dia] = [];
-    porDia[m.dia].push(m);
+    const l = m.livro || "?";
+    if (!porLivro[l]) porLivro[l] = [];
+    porLivro[l].push(m);
   }
-  const diasOrdenados = Object.keys(porDia).map(Number).sort((a,b)=>a-b);
+  const livrosOrdenados = Object.keys(porLivro).sort((a,b)=>(LIVRO_ORD[a]??999)-(LIVRO_ORD[b]??999));
 
   let html = "";
-  for (const dia of diasOrdenados) {
-    const ms = porDia[dia];
-    // Buscar referência do dia no plano (simplificado)
-    html += `<div class="dia-sec" id="dia-${dia}">
-      <div class="dia-lbl">Dia ${dia}<div class="dia-lbl-line"></div></div>`;
+  for (const l of livrosOrdenados) {
+    const ms = porLivro[l].sort((a,b)=>(a.cap_ini||0)-(b.cap_ini||0));
+    html += `<div class="dia-sec" id="livro-${l}">
+      <div class="dia-lbl">${LIVRO_NOME[l]||l}<div class="dia-lbl-line"></div></div>`;
     for (const m of ms) html += medCardHtml(m);
     html += "</div>";
   }
@@ -321,6 +334,7 @@ function medCardHtml(m) {
       <div class="med-author"><div class="med-name">${esc(m.autor)}</div><div class="med-role">${esc(m.papel||"")}</div></div>
       <span class="tipo-badge ${tbClass}">${esc(m.tipo)}</span>
     </div>
+    <div style="font-size:12px;font-weight:600;color:var(--accent);margin:2px 0 4px">📖 ${esc(refLabel(m))}</div>
     <div class="med-title">${esc(m.titulo)}</div>
     ${textoH}
     <div class="med-footer">
@@ -418,8 +432,8 @@ function expandir(id) {
   el.nextElementSibling.style.display = "none";
 }
 
-function scrollToDia(dia) {
-  document.getElementById("dia-"+dia)?.scrollIntoView({behavior:"smooth",block:"start"});
+function scrollToLivro(l) {
+  document.getElementById("livro-"+l)?.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 function esc(s) {

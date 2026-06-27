@@ -70,9 +70,15 @@ function isSuperadmin(admin) { return admin && admin.role === "superadmin"; }
 function podeModerar(admin)  { return admin && (admin.role === "superadmin" || admin.role === "pastor"); }
 function podePublicar(admin) { return admin !== null; }
 
-// ── Abas do plano de leitura ─────────────────────────────────────────
+// ── Aba de dados do usuário ──────────────────────────────────────────
+// Formato campo|valor (uma linha por campo, valor em JSON):
+//   plano        → config do plano escolhido (ordem, modo, ritmo, dias da semana…)
+//   lidos        → { "GEN.1": "ISO", ... } capítulos lidos (unidade de progresso)
+//   notas        → { "<dia>": { tags:[], texto:"" } } anotações por dia do plano
+//   legado_dias  → [N,...] dias concluídos no formato antigo (144 dias), a migrar
+//                  pelo frontend usando o plano oficial; depois esvaziado.
 
-function getOrCreateSheet(nomeRaw) {
+function getOrCreateUserSheet(nomeRaw) {
   if (!nomeRaw || nomeRaw.trim() === "") throw new Error("Nome não informado");
   const nomeLimpo = normalizarNome(nomeRaw);
   if (nomeLimpo.length < 2) throw new Error("Nome muito curto");
@@ -80,19 +86,55 @@ function getOrCreateSheet(nomeRaw) {
   let sheet = ss.getSheetByName(nomeLimpo);
   if (!sheet) {
     sheet = ss.insertSheet(nomeLimpo);
-    sheet.getRange(1,1,1,6).setValues([["dia","concluido","data_conclusao","nome_original","tags","nota"]]);
-    const rows = [];
-    for (let i = 1; i <= 144; i++) rows.push([i,false,"",nomeRaw.trim(),"",""]);
-    sheet.getRange(2,1,144,6).setValues(rows);
-    sheet.setFrozenRows(1);
-    sheet.getRange(1,1,1,6).setFontWeight("bold");
+    inicializarUserSheet(sheet);
     registrarUsuario(ss, nomeRaw.trim(), nomeLimpo);
-  } else {
-    const cab = sheet.getRange(1,1,1,6).getValues()[0];
-    if (!cab[4]) sheet.getRange(1,5).setValue("tags");
-    if (!cab[5]) sheet.getRange(1,6).setValue("nota");
+  } else if (sheet.getRange(1,1).getValue() === "dia") {
+    migrarUserSheet(sheet); // converte do formato antigo (144 dias)
   }
   return sheet;
+}
+
+function inicializarUserSheet(sheet) {
+  sheet.clear();
+  sheet.getRange(1,1,1,2).setValues([["campo","valor"]]);
+  sheet.getRange(2,1,4,2).setValues([
+    ["plano",""], ["lidos","{}"], ["notas","{}"], ["legado_dias","[]"]
+  ]);
+  sheet.setFrozenRows(1);
+  sheet.getRange(1,1,1,2).setFontWeight("bold");
+  sheet.setColumnWidth(2, 500);
+}
+
+function migrarUserSheet(sheet) {
+  const rows = sheet.getDataRange().getValues();
+  const notas = {}, legado = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i], dia = r[0];
+    if (!dia) continue;
+    const done = r[1]===true||r[1]==="TRUE"||r[1]==="true";
+    if (done) legado.push(Number(dia));
+    const tags = r[4]?String(r[4]):"", nota = r[5]?String(r[5]):"";
+    if (tags||nota) notas[String(dia)] = { tags: tags?tags.split(",").filter(Boolean):[], texto: nota };
+  }
+  inicializarUserSheet(sheet);
+  setCampo(sheet, "notas", JSON.stringify(notas));
+  setCampo(sheet, "legado_dias", JSON.stringify(legado));
+}
+
+// helpers campo|valor
+function _campoRow(sheet, campo) {
+  const col = sheet.getRange(1,1,Math.max(1,sheet.getLastRow()),1).getValues();
+  for (let i = 0; i < col.length; i++) if (col[i][0] === campo) return i+1;
+  const r = sheet.getLastRow()+1;
+  sheet.getRange(r,1).setValue(campo);
+  return r;
+}
+function getCampo(sheet, campo) { return sheet.getRange(_campoRow(sheet,campo),2).getValue(); }
+function setCampo(sheet, campo, valor) { sheet.getRange(_campoRow(sheet,campo),2).setValue(valor); }
+function getJSON(sheet, campo, fallback) {
+  const v = getCampo(sheet, campo);
+  if (!v) return fallback;
+  try { return JSON.parse(v); } catch(e) { return fallback; }
 }
 
 function registrarUsuario(ss, nomeOriginal, nomeAba) {
@@ -112,8 +154,12 @@ function getMeditacoesSheet() {
   let s = ss.getSheetByName("meditacoes");
   if (!s) {
     s = ss.insertSheet("meditacoes");
-    s.getRange(1,1,1,10).setValues([["id","dia","autor","papel","tipo","titulo","texto","data","curtidas","ativa"]]);
-    s.setFrozenRows(1); s.getRange(1,1,1,10).setFontWeight("bold"); s.setColumnWidth(7,400);
+    s.getRange(1,1,1,13).setValues([["id","dia","autor","papel","tipo","titulo","texto","data","curtidas","ativa","livro","cap_ini","cap_fim"]]);
+    s.setFrozenRows(1); s.getRange(1,1,1,13).setFontWeight("bold"); s.setColumnWidth(7,400);
+  } else if (!s.getRange(1,11).getValue()) {
+    // migra planilha existente: adiciona colunas de trecho bíblico
+    s.getRange(1,11,1,3).setValues([["livro","cap_ini","cap_fim"]]);
+    s.getRange(1,11,1,3).setFontWeight("bold");
   }
   return s;
 }
@@ -193,7 +239,9 @@ function doGet(e) {
     // ── Rotas do plano de leitura (por nome de usuário) ──
     if (!nome) return respond({ error: "Parâmetro 'nome' obrigatório" });
     if (action === "get")          return respond(getAllData(nome));
-    if (action === "toggle")       return respond(toggleDay(nome, dia));
+    if (action === "marcar")       return respond(marcarCaps(nome, e.parameter.caps||"", e.parameter.done));
+    if (action === "salvar_plano") return respond(salvarPlano(nome, e.parameter.config||""));
+    if (action === "limpar_legado")return respond(limparLegado(nome));
     if (action === "salvar_nota")  return respond(salvarNota(nome, dia, e.parameter.tags||"", e.parameter.nota||""));
 
     return respond({ error: "Ação desconhecida: " + action });
@@ -266,46 +314,60 @@ function trocarSenha(admin, novaSenha) {
 // ── Progresso de leitura ─────────────────────────────────────────────
 
 function getAllData(nomeRaw) {
-  const sheet = getOrCreateSheet(nomeRaw);
-  const data  = sheet.getRange(2,1,144,6).getValues();
-  const progress = {}, notas = {};
-  for (const row of data) {
-    const dia  = row[0];
-    const done = row[1]===true||row[1]==="TRUE"||row[1]==="true";
-    progress[String(dia)] = { done, date: row[2]?String(row[2]):"" };
-    const tags = row[4]?String(row[4]):"", nota = row[5]?String(row[5]):"";
-    if (tags||nota) notas[String(dia)] = { tags: tags?tags.split(",").filter(Boolean):[], texto: nota };
-  }
-  return { progress, notas, nome: nomeRaw.trim() };
+  const sheet = getOrCreateUserSheet(nomeRaw);
+  return {
+    nome:        nomeRaw.trim(),
+    plano:       getJSON(sheet, "plano", null),
+    lidos:       getJSON(sheet, "lidos", {}),
+    notas:       getJSON(sheet, "notas", {}),
+    legado_dias: getJSON(sheet, "legado_dias", []),
+  };
 }
 
-function toggleDay(nomeRaw, dia) {
-  if (!dia||dia<1||dia>144) return { error: "Dia inválido" };
-  const sheet  = getOrCreateSheet(nomeRaw);
-  const rowNum = dia + 1;
-  const cur    = sheet.getRange(rowNum,2).getValue();
-  const was    = cur===true||cur==="TRUE"||cur==="true";
-  sheet.getRange(rowNum,2).setValue(!was);
-  sheet.getRange(rowNum,3).setValue(!was?new Date().toISOString():"");
-  return { dia, done: !was };
+// Marca/desmarca um ou mais capítulos. caps = "GEN.1,GEN.2,..."
+function marcarCaps(nomeRaw, capsStr, doneParam) {
+  const caps = String(capsStr||"").split(",").map(s=>s.trim()).filter(Boolean);
+  if (!caps.length) return { error: "Nenhum capítulo informado" };
+  const done  = doneParam==="true"||doneParam===true;
+  const sheet = getOrCreateUserSheet(nomeRaw);
+  const lidos = getJSON(sheet, "lidos", {});
+  const agora = new Date().toISOString();
+  for (const ref of caps) { if (done) lidos[ref]=agora; else delete lidos[ref]; }
+  setCampo(sheet, "lidos", JSON.stringify(lidos));
+  return { ok:true, done, total_lidos: Object.keys(lidos).length };
+}
+
+function salvarPlano(nomeRaw, configStr) {
+  let cfg; try { cfg = JSON.parse(configStr); } catch(e) { return { error: "Config inválida" }; }
+  const sheet = getOrCreateUserSheet(nomeRaw);
+  setCampo(sheet, "plano", JSON.stringify(cfg));
+  return { ok:true };
 }
 
 function salvarNota(nomeRaw, dia, tags, nota) {
-  if (!dia||dia<1||dia>144) return { error: "Dia inválido" };
-  const sheet = getOrCreateSheet(nomeRaw);
-  sheet.getRange(dia+1,5).setValue(tags);
-  sheet.getRange(dia+1,6).setValue(nota);
-  return { dia, ok: true };
+  if (!dia||dia<1) return { error: "Dia inválido" };
+  const sheet = getOrCreateUserSheet(nomeRaw);
+  const notas = getJSON(sheet, "notas", {});
+  notas[String(dia)] = { tags: tags?String(tags).split(",").filter(Boolean):[], texto: String(nota||"") };
+  setCampo(sheet, "notas", JSON.stringify(notas));
+  return { dia, ok:true };
+}
+
+function limparLegado(nomeRaw) {
+  const sheet = getOrCreateUserSheet(nomeRaw);
+  setCampo(sheet, "legado_dias", "[]");
+  return { ok:true };
 }
 
 function getInfo(nomeRaw) {
   if (!nomeRaw) return { error: "Nome obrigatório" };
-  const sheet = getOrCreateSheet(nomeRaw);
-  const data  = sheet.getRange(2,1,144,2).getValues();
-  let done = 0;
-  for (const row of data) if (row[1]===true||row[1]==="TRUE"||row[1]==="true") done++;
-  return { nome: nomeRaw.trim(), dias_concluidos: done, total: 144, percentual: Math.round(done/144*100) };
+  const sheet = getOrCreateUserSheet(nomeRaw);
+  const lidos = getJSON(sheet, "lidos", {});
+  return { nome: nomeRaw.trim(), caps_lidos: Object.keys(lidos).length, total: TOTAL_CAPS_BIBLIA };
 }
+
+// total de capítulos da Bíblia (referência para percentuais/ranking)
+const TOTAL_CAPS_BIBLIA = 1189;
 
 function listarUsuarios() {
   const ss  = SpreadsheetApp.getActiveSpreadsheet();
@@ -327,7 +389,8 @@ function getMeditacoes(dia) {
     const r = rows[i];
     const ativa = r[9]===true||r[9]==="TRUE"||r[9]==="true"||r[9]==="";
     if (Number(r[1])===dia && ativa)
-      res.push({ id:r[0],dia:r[1],autor:r[2],papel:r[3],tipo:r[4],titulo:r[5],texto:r[6],data:r[7],curtidas:Number(r[8]||0) });
+      res.push({ id:r[0],dia:r[1],autor:r[2],papel:r[3],tipo:r[4],titulo:r[5],texto:r[6],data:r[7],curtidas:Number(r[8]||0),
+                 livro:r[10]||"",cap_ini:Number(r[11]||0),cap_fim:Number(r[12]||0) });
   }
   return { meditacoes: res };
 }
@@ -340,25 +403,29 @@ function getTodasMeditacoes(incluirInativas) {
     const r = rows[i];
     const ativa = r[9]===true||r[9]==="TRUE"||r[9]==="true"||r[9]==="";
     if (!incluirInativas && !ativa) continue;
-    res.push({ id:r[0],dia:r[1],autor:r[2],papel:r[3],tipo:r[4],titulo:r[5],
-               texto:String(r[6]||"").substring(0,100)+(String(r[6]||"").length>100?"…":""),
-               data:r[7],curtidas:Number(r[8]||0),ativa });
+    res.push({ id:r[0],dia:r[1],autor:r[2],papel:r[3],tipo:r[4],titulo:r[5],texto:String(r[6]||""),
+               data:r[7],curtidas:Number(r[8]||0),ativa,
+               livro:r[10]||"",cap_ini:Number(r[11]||0),cap_fim:Number(r[12]||0) });
   }
   return { meditacoes: res };
 }
 
 function publicar(admin, p) {
   if (!podePublicar(admin)) return { error: "Sem permissão para publicar" };
-  const dia    = parseInt(p.dia||"0");
   const titulo = (p.titulo||"").trim();
   const texto  = (p.texto||"").trim();
   const autor  = admin.nome; // sempre usa o nome do admin autenticado
-  if (!dia||dia<1||dia>144) return { error: "Dia inválido (1–144)" };
-  if (!titulo)              return { error: "Título obrigatório" };
-  if (texto.length < 30)   return { error: "Texto muito curto (mínimo 30 caracteres)" };
+  const livro  = (p.livro||"").trim().toUpperCase();
+  const capIni = parseInt(p.cap_ini||"0");
+  const capFim = parseInt(p.cap_fim||p.cap_ini||"0");
+  if (!livro)            return { error: "Livro obrigatório" };
+  if (!capIni||capIni<1) return { error: "Capítulo inicial inválido" };
+  if (capFim<capIni)     return { error: "Capítulo final menor que o inicial" };
+  if (!titulo)           return { error: "Título obrigatório" };
+  if (texto.length < 30) return { error: "Texto muito curto (mínimo 30 caracteres)" };
   const s  = getMeditacoesSheet();
   const id = gerarId();
-  s.appendRow([id, dia, autor, admin.papel, p.tipo||"Devocional", titulo, texto, new Date().toISOString(), 0, true]);
+  s.appendRow([id, 0, autor, admin.papel, p.tipo||"Devocional", titulo, texto, new Date().toISOString(), 0, true, livro, capIni, capFim]);
   return { ok: true, id };
 }
 
@@ -459,18 +526,23 @@ function editarMed(admin, p) {
       return { error: "Você só pode editar suas próprias meditações" };
     }
 
-    const dia    = parseInt(p.dia)    || Number(rows[i][1]);
     const tipo   = p.tipo             || rows[i][4];
     const titulo = (p.titulo || "").trim() || rows[i][5];
     const texto  = (p.texto  || "").trim() || rows[i][6];
+    const livro  = (p.livro||"").trim().toUpperCase() || rows[i][10];
+    const capIni = parseInt(p.cap_ini) || Number(rows[i][11]);
+    const capFim = parseInt(p.cap_fim) || Number(rows[i][12]) || capIni;
 
-    if (!titulo)        return { error: "Título obrigatório" };
+    if (!titulo)           return { error: "Título obrigatório" };
     if (texto.length < 30) return { error: "Texto muito curto (mínimo 30 caracteres)" };
+    if (capFim<capIni)     return { error: "Capítulo final menor que o inicial" };
 
-    s.getRange(i+1, 2).setValue(dia);
     s.getRange(i+1, 5).setValue(tipo);
     s.getRange(i+1, 6).setValue(titulo);
     s.getRange(i+1, 7).setValue(texto);
+    s.getRange(i+1, 11).setValue(livro);
+    s.getRange(i+1, 12).setValue(capIni);
+    s.getRange(i+1, 13).setValue(capFim);
 
     return { ok: true, id: medId };
   }
