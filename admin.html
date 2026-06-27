@@ -274,6 +274,42 @@ textarea.fi{min-height:140px;resize:vertical;line-height:1.6;font-family:inherit
   </div>
 </div>
 
+<!-- Modal de edição -->
+<div id="edit-modal" style="display:none">
+  <div class="modal-overlay" style="align-items:flex-start;padding-top:40px;overflow-y:auto">
+    <div class="modal" style="max-width:560px;gap:14px">
+      <h3>Editar meditação</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label class="flabel" style="display:block;margin-bottom:4px">Dia (1–144)</label>
+          <input class="fi" type="number" id="edit-dia" min="1" max="144">
+        </div>
+        <div>
+          <label class="flabel" style="display:block;margin-bottom:4px">Tipo</label>
+          <select class="fi" id="edit-tipo">
+            <option>Pastoral</option><option>Exegese</option>
+            <option>Devocional</option><option>EBD</option><option>Testemunho</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="flabel" style="display:block;margin-bottom:4px">Título</label>
+        <input class="fi" type="text" id="edit-titulo" style="width:100%">
+      </div>
+      <div>
+        <label class="flabel" style="display:block;margin-bottom:4px">Texto</label>
+        <textarea class="fi" id="edit-texto" style="width:100%;min-height:160px;resize:vertical;line-height:1.6;font-family:inherit" oninput="document.getElementById('edit-chars').textContent=this.value.length+' caracteres'"></textarea>
+        <div style="font-size:11px;color:var(--muted);text-align:right;margin-top:3px" id="edit-chars">0 caracteres</div>
+      </div>
+      <div id="edit-alert"></div>
+      <div class="modal-acts">
+        <button class="mbtn" onclick="fecharEditModal()">Cancelar</button>
+        <button class="mbtn primary" id="edit-save-btn" onclick="salvarEdicao()">Salvar alterações</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const SCRIPT = "https://script.google.com/macros/s/AKfycbw8InWSnsnFO5CDRVTw2UlBuSAnfW16OfxjP4i4nvkXRfYzVm9Y629A67Ds_-Fij5m1/exec";
 const LS_USER = "bib_adm_user";
