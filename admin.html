@@ -194,6 +194,7 @@ textarea.fi{min-height:140px;resize:vertical;line-height:1.6;font-family:inherit
 
     <!-- Meditações -->
     <div id="pane-meds" style="display:none">
+      <div id="meds-alert"></div>
       <div class="list-card" id="meds-list"><div class="loading-row">Carregando…</div></div>
     </div>
 
@@ -370,44 +371,27 @@ async function publicar(){
 }
 
 // ── Meditações ────────────────────────────────────────────────────
-async function carregarMeds(){
-  document.getElementById("meds-list").innerHTML=`<div class="loading-row">Carregando…</div>`;
+async function carregarMeds(force){
+  if(!_medsCache) document.getElementById("meds-list").innerHTML=`<div class="loading-row">Carregando…</div>`;
+  else renderMedsFromCache();
   try{
-    const d=await api({action:"get_todas_med_admin",usuario:sessao.usuario,senha:sessao.senha});
-    const meds=(d.meditacoes||[]).reverse();
-    if(!meds.length){ document.getElementById("meds-list").innerHTML=`<div class="empty-row">Nenhuma meditação ainda.</div>`; return; }
-    const tipo2c=t=>"tm-"+(t||"devocional").toLowerCase();
-    document.getElementById("meds-list").innerHTML=
-      `<div class="list-title">Todas as meditações <span>${meds.length}</span></div>`+
-      meds.map(m=>{
-        const ativa=m.ativa===true||m.ativa==="TRUE"||m.ativa==="true"||m.ativa==="";
-        return`<div class="list-row">
-          <div class="list-row-info">
-            <div class="row-top">
-              <span style="font-size:11px;color:var(--muted)">Dia ${m.dia}</span>
-              <span class="tipo-mini ${tipo2c(m.tipo)}">${esc(m.tipo)}</span>
-              <span style="font-size:11px;color:var(--muted)">${esc(m.autor)}</span>
-            </div>
-            <div class="row-title">${esc(m.titulo)}</div>
-            <div class="row-sub">${esc(m.texto)} · ♥ ${m.curtidas}</div>
-          </div>
-          <div class="row-acts">
-            <button class="abtn ${ativa?"on":""}" onclick="toggleMed('${m.id}',${!ativa},this)">
-              ${ativa?"Visível":"Oculto"}
-            </button>
-          </div>
-        </div>`;
-      }).join("");
-  } catch(e){ document.getElementById("meds-list").innerHTML=`<div class="empty-row">Erro ao carregar.</div>`; }
+    await getMedsComCache(force);
+    renderMedsFromCache();
+  }catch(e){document.getElementById("meds-list").innerHTML=`<div class="empty-row">Erro ao carregar.</div>`;}
 }
 
 async function toggleMed(id,ativa,btn){
+  btn.textContent=ativa?"Visível":"Oculto";
+  btn.classList.toggle("on",ativa);
+  if(_medsCache){const m=_medsCache.find(m=>m.id===id);if(m)m.ativa=ativa;}
   try{
     const d=await api({action:"moderar_med",usuario:sessao.usuario,senha:sessao.senha,med_id:id,ativa:String(ativa)});
     if(d.error) throw new Error(d.error);
-    btn.textContent=ativa?"Visível":"Oculto";
-    btn.classList.toggle("on",ativa);
-  } catch(e){ alert("Erro: "+e.message); }
+  }catch(e){
+    btn.textContent=ativa?"Oculto":"Visível";
+    btn.classList.toggle("on",!ativa);
+    alert("Erro: "+e.message);
+  }
 }
 
 // ── Comentários ───────────────────────────────────────────────────
@@ -562,7 +546,106 @@ function alertPane(pane, tipo, msg){
   }
   document.getElementById("inp-pass").addEventListener("keydown",e=>{if(e.key==="Enter")entrar();});
   document.getElementById("inp-user").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("inp-pass").focus();});
+  fetch(SCRIPT+"?action=ping",{cache:"no-store"}).catch(()=>{});
 })();
+
+let _medsCache=null,_medsCacheTime=0;
+const CACHE_TTL=60000;
+
+async function getMedsComCache(force){
+  if(!force&&_medsCache&&(Date.now()-_medsCacheTime)<CACHE_TTL) return _medsCache;
+  const d=await api({action:"get_todas_med_admin",usuario:sessao.usuario,senha:sessao.senha});
+  _medsCache=(d.meditacoes||[]).reverse();
+  _medsCacheTime=Date.now();
+  return _medsCache;
+}
+
+function tipo2c(t){return "tm-"+(t||"devocional").toLowerCase();}
+
+function renderMedsFromCache(){
+  if(!_medsCache) return;
+  if(!_medsCache.length){document.getElementById("meds-list").innerHTML=`<div class="empty-row">Nenhuma meditação ainda.</div>`;return;}
+  document.getElementById("meds-list").innerHTML=
+    `<div class="list-title">Todas as meditações <span>${_medsCache.length}</span></div>`+
+    _medsCache.map(m=>{
+      const ativa=m.ativa===true||m.ativa==="TRUE"||m.ativa==="true"||m.ativa==="";
+      const medJson=JSON.stringify({id:m.id,dia:m.dia,tipo:m.tipo,titulo:m.titulo,texto:m.texto,_textoCompleto:m._textoCompleto||""}).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+      return`<div class="list-row" id="med-row-${m.id}">
+        <div class="list-row-info">
+          <div class="row-top">
+            <span style="font-size:11px;color:var(--muted)">Dia ${m.dia}</span>
+            <span class="tipo-mini ${tipo2c(m.tipo)}">${esc(m.tipo)}</span>
+            <span style="font-size:11px;color:var(--muted)">${esc(m.autor)}</span>
+          </div>
+          <div class="row-title">${esc(m.titulo)}</div>
+          <div class="row-sub">${esc(m.texto)} · ♥ ${m.curtidas||0}</div>
+        </div>
+        <div class="row-acts">
+          <button class="abtn" onclick="abrirEditar(${medJson})">Editar</button>
+          <button class="abtn ${ativa?"on":""}" onclick="toggleMed('${m.id}',${!ativa},this)">${ativa?"Visível":"Oculto"}</button>
+        </div>
+      </div>`;
+    }).join("");
+}
+
+let _editandoId=null;
+
+function abrirEditar(med){
+  _editandoId=med.id;
+  document.getElementById("edit-dia").value=med.dia;
+  document.getElementById("edit-tipo").value=med.tipo||"Devocional";
+  document.getElementById("edit-titulo").value=med.titulo||"";
+  const txt=med._textoCompleto||med.texto||"";
+  document.getElementById("edit-texto").value=txt;
+  document.getElementById("edit-chars").textContent=txt.length+" caracteres";
+  document.getElementById("edit-alert").innerHTML="";
+  document.getElementById("edit-save-btn").disabled=false;
+  document.getElementById("edit-save-btn").textContent="Salvar alterações";
+  document.getElementById("edit-modal").style.display="";
+}
+
+function fecharEditModal(){
+  document.getElementById("edit-modal").style.display="none";
+  _editandoId=null;
+}
+
+async function salvarEdicao(){
+  const dia=parseInt(document.getElementById("edit-dia").value)||0;
+  const tipo=document.getElementById("edit-tipo").value;
+  const titulo=document.getElementById("edit-titulo").value.trim();
+  const texto=document.getElementById("edit-texto").value.trim();
+  if(!dia||dia<1||dia>144){editAlert("err","Dia inválido (1–144).");return;}
+  if(!titulo){editAlert("err","Título obrigatório.");return;}
+  if(texto.length<30){editAlert("err","Texto muito curto (mínimo 30 caracteres).");return;}
+  const btn=document.getElementById("edit-save-btn");
+  btn.disabled=true;btn.textContent="Salvando…";
+  // Otimista: atualizar cache local
+  if(_medsCache){
+    const idx=_medsCache.findIndex(m=>m.id===_editandoId);
+    if(idx>=0) _medsCache[idx]={..._medsCache[idx],dia,tipo,titulo,
+      texto:texto.substring(0,100)+(texto.length>100?"…":""),_textoCompleto:texto};
+  }
+  const idSalvo=_editandoId;
+  fecharEditModal();
+  renderMedsFromCache();
+  try{
+    const d=await api({action:"editar_med",usuario:sessao.usuario,senha:sessao.senha,
+      med_id:idSalvo,dia,tipo,titulo,texto});
+    if(d.error) throw new Error(d.error);
+    alertPane("meds","ok","Meditação atualizada!");
+    _medsCache=null;
+    await carregarMeds(true);
+  }catch(e){
+    alertPane("meds","err","Erro ao salvar: "+e.message);
+    _medsCache=null;
+    carregarMeds(true);
+  }
+}
+
+function editAlert(tipo,msg){
+  document.getElementById("edit-alert").innerHTML=
+    `<div class="alert a-${tipo==="ok"?"ok":"err"}">${msg}</div>`;
+}
 </script>
 </body>
 </html>
