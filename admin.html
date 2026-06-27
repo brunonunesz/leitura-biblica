@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Admin — Meditações IBJP</title>
+<style>
+:root{
+  --bg:#f8f7f4;--surface:#fff;--border:#e5e3dc;--text:#1a1a18;--muted:#6b7280;
+  --accent:#2563eb;--accent-bg:#eff6ff;--accent-border:#bfdbfe;
+  --green:#16a34a;--green-bg:#f0fdf4;--green-border:#bbf7d0;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;--purple-border:#ddd6fe;
+  --amber:#d97706;--amber-bg:#fffbeb;--amber-border:#fde68a;
+  --pink:#be185d;--pink-bg:#fdf2f8;--pink-border:#fbcfe8;
+  --red:#dc2626;--red-bg:#fef2f2;--red-border:#fecaca;
+  --r:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#18181b;--surface:#27272a;--border:#3f3f46;--text:#fafafa;--muted:#a1a1aa;
+  --accent:#60a5fa;--accent-bg:#1e3a5f;--accent-border:#1d4ed8;
+  --green:#4ade80;--green-bg:#14532d;--green-border:#166534;
+  --purple:#a78bfa;--purple-bg:#2e1065;--purple-border:#5b21b6;
+  --amber:#fbbf24;--amber-bg:#451a03;--amber-border:#92400e;
+  --pink:#f9a8d4;--pink-bg:#500724;--pink-border:#9d174d;
+  --red:#f87171;--red-bg:#450a0a;--red-border:#991b1b;
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* Login */
+#login{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;text-align:center}
+.login-card h1{font-size:20px;font-weight:700}
+.login-card p{font-size:13px;color:var(--muted)}
+.finput{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--r);font-size:14px;background:var(--surface);color:var(--text);outline:none}
+.finput:focus{border-color:var(--accent)}
+.fbtn{width:100%;padding:13px;border-radius:var(--r);border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer}
+.fbtn:active{opacity:.85}
+.ferr{font-size:13px;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--r);padding:10px;display:none}
+.ferr.on{display:block}
+
+/* App */
+#app{display:none}
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:13px 18px;position:sticky;top:0;z-index:100}
+.hdr-inner{max-width:800px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+.hdr h1{font-size:16px;font-weight:700}
+.ibtn{font-size:12px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:99px;padding:5px 12px;cursor:pointer}
+.ibtn:active{background:var(--border)}
+
+.main{max-width:800px;margin:0 auto;padding:16px 18px 80px}
+.tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0}
+.tab{padding:8px 16px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.act{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* Formulário de publicação */
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px}
+.form-card h2{font-size:15px;font-weight:700;margin-bottom:14px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.field{margin-bottom:10px}
+.flabel{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;display:block}
+.finput-sm{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;background:var(--surface);color:var(--text);outline:none}
+.finput-sm:focus{border-color:var(--accent)}
+.ftextarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;background:var(--surface);color:var(--text);outline:none;resize:vertical;min-height:140px;font-family:inherit;line-height:1.6}
+.ftextarea:focus{border-color:var(--accent)}
+.fselect{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;background:var(--surface);color:var(--text);outline:none}
+.pub-btn{padding:12px 24px;border-radius:var(--r);border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+.pub-btn:active{opacity:.85}
+.pub-btn:disabled{opacity:.5;cursor:not-allowed}
+.alert{border-radius:var(--r);padding:10px 14px;font-size:13px;margin-bottom:10px}
+.alert-ok{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
+.alert-err{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
+.char-count{font-size:11px;color:var(--muted);text-align:right;margin-top:3px}
+
+/* Lista de meditações */
+.med-list-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.med-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.med-row:last-child{border-bottom:none}
+.med-row-info{flex:1;min-width:0}
+.med-row-dia{font-size:11px;color:var(--muted)}
+.med-row-title{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.med-row-autor{font-size:11px;color:var(--muted)}
+.tipo-mini{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px}
+.tm-pastoral{background:var(--green-bg);color:var(--green)}
+.tm-exegese{background:var(--purple-bg);color:var(--purple)}
+.tm-devocional{background:var(--accent-bg);color:var(--accent)}
+.tm-ebd{background:var(--amber-bg);color:var(--amber)}
+.tm-testemunho{background:var(--pink-bg);color:var(--pink)}
+.med-row-acts{display:flex;gap:5px;flex-shrink:0}
+.act-mini{font-size:11px;padding:4px 9px;border-radius:99px;border:1px solid var(--border);background:none;cursor:pointer;color:var(--muted)}
+.act-mini:hover{color:var(--red);border-color:var(--red)}
+.act-mini.on{color:var(--green);border-color:var(--green-border)}
+.loading{text-align:center;padding:30px;color:var(--muted);font-size:13px}
+.empty-row{padding:20px;text-align:center;color:var(--muted);font-size:13px}
+
+/* Comentários na moderação */
+.com-row{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)}
+.com-row:last-child{border-bottom:none}
+.com-row-info{flex:1;min-width:0}
+.com-row-header{display:flex;gap:6px;align-items:center;margin-bottom:3px;flex-wrap:wrap}
+.com-ref{font-size:11px;color:var(--muted)}
+.com-autor{font-size:12px;font-weight:600}
+.com-text-row{font-size:12px;color:var(--text);line-height:1.5}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login">
+  <div class="login-card">
+    <h1>Área do Publicador</h1>
+    <p>Acesso restrito a pastores e colaboradores autorizados.</p>
+    <input class="finput" type="password" id="senha-inp" placeholder="Senha" onkeydown="if(event.key==='Enter')entrar()">
+    <div id="login-err" class="ferr">Senha incorreta.</div>
+    <button class="fbtn" onclick="entrar()">Entrar</button>
+    <a href="index.html" style="font-size:13px;color:var(--muted)">← Voltar ao app</a>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div class="hdr">
+    <div class="hdr-inner">
+      <h1>Admin — Meditações IBJP</h1>
+      <div style="display:flex;gap:6px">
+        <button class="ibtn" onclick="window.location.href='meditacoes.html'">Ver público</button>
+        <button class="ibtn" onclick="sair()">Sair</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="tabs">
+      <div class="tab act" id="tab-pub" onclick="mudarTab('pub')">Publicar</div>
+      <div class="tab" id="tab-list" onclick="mudarTab('list')">Meditações</div>
+      <div class="tab" id="tab-coms" onclick="mudarTab('coms')">Comentários</div>
+    </div>
+
+    <!-- Aba publicar -->
+    <div id="pane-pub">
+      <div class="form-card">
+        <h2>Nova meditação</h2>
+        <div id="pub-alert"></div>
+        <div class="field-row">
+          <div class="field">
+            <label class="flabel">Dia do plano (1–144)</label>
+            <input class="finput-sm" type="number" id="f-dia" min="1" max="144" placeholder="Ex: 1">
+          </div>
+          <div class="field">
+            <label class="flabel">Tipo</label>
+            <select class="fselect" id="f-tipo">
+              <option>Pastoral</option>
+              <option>Exegese</option>
+              <option>Devocional</option>
+              <option>EBD</option>
+              <option>Testemunho</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="flabel">Seu nome</label>
+            <input class="finput-sm" type="text" id="f-autor" placeholder="Ex: Pr. Bruno">
+          </div>
+          <div class="field">
+            <label class="flabel">Papel / título</label>
+            <input class="finput-sm" type="text" id="f-papel" placeholder="Ex: Pastor — IBJP">
+          </div>
+        </div>
+        <div class="field">
+          <label class="flabel">Título da meditação</label>
+          <input class="finput-sm" type="text" id="f-titulo" placeholder="Ex: A soberania de Deus na criação">
+        </div>
+        <div class="field">
+          <label class="flabel">Texto</label>
+          <textarea class="ftextarea" id="f-texto" placeholder="Escreva a meditação aqui…" oninput="contarChars()"></textarea>
+          <div class="char-count"><span id="char-n">0</span> caracteres</div>
+        </div>
+        <button class="pub-btn" id="btn-pub" onclick="publicar()">Publicar meditação</button>
+      </div>
+    </div>
+
+    <!-- Aba lista -->
+    <div id="pane-list" style="display:none">
+      <div class="med-list-card" id="med-list"><div class="loading">Carregando…</div></div>
+    </div>
+
+    <!-- Aba comentários -->
+    <div id="pane-coms" style="display:none">
+      <div class="med-list-card" id="com-list"><div class="loading">Carregando…</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCRIPT = "https://script.google.com/macros/s/AKfycbw8InWSnsnFO5CDRVTw2UlBuSAnfW16OfxjP4i4nvkXRfYzVm9Y629A67Ds_-Fij5m1/exec";
+const SENHA_LOCAL = "bib_admin_senha";
+let senha = "";
+
+function entrar() {
+  const s = document.getElementById("senha-inp").value;
+  if (!s) return;
+  // Testar senha contra o servidor
+  fetch(SCRIPT + "?action=publicar&senha=" + encodeURIComponent(s) + "&dia=0&autor=test&titulo=test&texto=test")
+    .then(r => r.json())
+    .then(d => {
+      if (d.error === "Senha incorreta") {
+        document.getElementById("login-err").classList.add("on");
+      } else {
+        // Senha correta (pode ter dado erro de validação, mas não "Senha incorreta")
+        senha = s;
+        localStorage.setItem(SENHA_LOCAL, s);
+        localStorage.setItem("bib_admin", "sim");
+        document.getElementById("login").style.display = "none";
+        document.getElementById("app").style.display = "block";
+        document.getElementById("login-err").classList.remove("on");
+        carregarLista();
+      }
+    }).catch(() => {
+      // Offline — tentar senha salva
+      const saved = localStorage.getItem(SENHA_LOCAL);
+      if (saved && saved === s) {
+        senha = s;
+        document.getElementById("login").style.display = "none";
+        document.getElementById("app").style.display = "block";
+      } else {
+        document.getElementById("login-err").classList.add("on");
+      }
+    });
+}
+
+function sair() {
+  localStorage.removeItem(SENHA_LOCAL);
+  localStorage.removeItem("bib_admin");
+  senha = "";
+  document.getElementById("login").style.display = "flex";
+  document.getElementById("app").style.display = "none";
+  document.getElementById("senha-inp").value = "";
+}
+
+function mudarTab(t) {
+  ["pub","list","coms"].forEach(x => {
+    document.getElementById("tab-"+x).classList.toggle("act", x===t);
+    document.getElementById("pane-"+x).style.display = x===t?"":"none";
+  });
+  if (t === "list") carregarLista();
+  if (t === "coms") carregarComs();
+}
+
+function contarChars() {
+  document.getElementById("char-n").textContent = document.getElementById("f-texto").value.length;
+}
+
+async function publicar() {
+  const dia    = parseInt(document.getElementById("f-dia").value);
+  const autor  = document.getElementById("f-autor").value.trim();
+  const papel  = document.getElementById("f-papel").value.trim();
+  const tipo   = document.getElementById("f-tipo").value;
+  const titulo = document.getElementById("f-titulo").value.trim();
+  const texto  = document.getElementById("f-texto").value.trim();
+
+  if (!dia || dia<1 || dia>144) { showAlert("pub", "err", "Dia inválido (1–144)."); return; }
+  if (!autor) { showAlert("pub", "err", "Informe seu nome."); return; }
+  if (!titulo) { showAlert("pub", "err", "Informe o título."); return; }
+  if (texto.length < 30) { showAlert("pub", "err", "Texto muito curto (mínimo 30 caracteres)."); return; }
+
+  const btn = document.getElementById("btn-pub");
+  btn.disabled = true; btn.textContent = "Publicando…";
+
+  const url = SCRIPT +
+    "?action=publicar" +
+    "&senha=" + encodeURIComponent(senha) +
+    "&dia=" + dia +
+    "&autor=" + encodeURIComponent(autor) +
+    "&papel=" + encodeURIComponent(papel) +
+    "&tipo=" + encodeURIComponent(tipo) +
+    "&titulo=" + encodeURIComponent(titulo) +
+    "&texto=" + encodeURIComponent(texto);
+
+  try {
+    const r = await fetch(url, { cache:"no-store" });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    showAlert("pub", "ok", "Meditação publicada! Já está visível na página de meditações.");
+    // Limpar
+    ["f-dia","f-titulo","f-texto"].forEach(id => document.getElementById(id).value="");
+    document.getElementById("char-n").textContent = "0";
+  } catch(e) {
+    showAlert("pub", "err", "Erro: " + e.message);
+  }
+  btn.disabled = false; btn.textContent = "Publicar meditação";
+}
+
+async function carregarLista() {
+  document.getElementById("med-list").innerHTML = `<div class="loading">Carregando…</div>`;
+  try {
+    const r = await fetch(SCRIPT + "?action=get_todas_med", { cache:"no-store" });
+    const d = await r.json();
+    const meds = d.meditacoes || [];
+    if (meds.length === 0) {
+      document.getElementById("med-list").innerHTML = `<div class="empty-row">Nenhuma meditação publicada ainda.</div>`;
+      return;
+    }
+    const tipo2class = t => "tm-"+(t||"devocional").toLowerCase();
+    document.getElementById("med-list").innerHTML = meds.reverse().map(m => {
+      const ativa = m.ativa === true || m.ativa === "TRUE" || m.ativa === "true" || m.ativa === "";
+      return `<div class="med-row">
+        <div class="med-row-info">
+          <div class="med-row-dia">Dia ${m.dia} · ${esc(m.autor)}</div>
+          <div class="med-row-title">${esc(m.titulo)}</div>
+          <div class="med-row-autor">${esc(m.texto)}</div>
+        </div>
+        <span class="tipo-mini ${tipo2class(m.tipo)}">${esc(m.tipo)}</span>
+        <div class="med-row-acts">
+          <button class="act-mini ${ativa?"on":""}" onclick="moderarMed('${m.id}',${!ativa},this)">
+            ${ativa?"Visível":"Oculto"}
+          </button>
+        </div>
+      </div>`;
+    }).join("");
+  } catch(e) {
+    document.getElementById("med-list").innerHTML = `<div class="empty-row">Erro ao carregar.</div>`;
+  }
+}
+
+async function carregarComs() {
+  document.getElementById("com-list").innerHTML = `<div class="loading">Carregando…</div>`;
+  try {
+    // Buscar todas as meditações e depois comentários de cada uma
+    const r = await fetch(SCRIPT + "?action=get_todas_med", { cache:"no-store" });
+    const d = await r.json();
+    const meds = d.meditacoes || [];
+    // Buscar comentários das últimas 20 meditações
+    const top20 = meds.slice(-20);
+    const comLists = await Promise.all(top20.map(m =>
+      fetch(SCRIPT+"?action=get_comentarios&med_id="+m.id,{cache:"no-store"})
+        .then(r=>r.json())
+        .then(d=>(d.comentarios||[]).map(c=>({...c, med_titulo:m.titulo, med_dia:m.dia})))
+        .catch(()=>[])
+    ));
+    const todos = comLists.flat().sort((a,b)=>new Date(b.data)-new Date(a.data));
+    if (todos.length === 0) {
+      document.getElementById("com-list").innerHTML = `<div class="empty-row">Nenhum comentário ainda.</div>`;
+      return;
+    }
+    document.getElementById("com-list").innerHTML = todos.map(c => `
+      <div class="com-row">
+        <div class="com-row-info">
+          <div class="com-row-header">
+            <span class="com-autor">${esc(c.autor)}</span>
+            <span class="com-ref">em "${esc(c.med_titulo)}" (Dia ${c.med_dia})</span>
+            <span class="com-ref">${new Date(c.data).toLocaleDateString("pt-BR")}</span>
+          </div>
+          <div class="com-text-row">${esc(c.texto)}</div>
+        </div>
+        <button class="act-mini" onclick="moderarCom('${c.id}',false,this)" style="color:var(--red);border-color:var(--red-border)">Remover</button>
+      </div>`).join("");
+  } catch(e) {
+    document.getElementById("com-list").innerHTML = `<div class="empty-row">Erro ao carregar.</div>`;
+  }
+}
+
+async function moderarMed(id, ativa, btn) {
+  try {
+    await fetch(SCRIPT+"?action=moderar_med&senha="+encodeURIComponent(senha)+"&med_id="+id+"&ativa="+ativa,{cache:"no-store"});
+    btn.textContent = ativa ? "Visível" : "Oculto";
+    btn.classList.toggle("on", ativa);
+  } catch(e) {}
+}
+
+async function moderarCom(id, ativa, btn) {
+  if (!confirm("Remover este comentário?")) return;
+  try {
+    await fetch(SCRIPT+"?action=moderar_com&senha="+encodeURIComponent(senha)+"&com_id="+id+"&ativa=false",{cache:"no-store"});
+    btn.closest(".com-row").remove();
+  } catch(e) {}
+}
+
+function showAlert(pane, tipo, msg) {
+  const el = document.getElementById(pane+"-alert")||document.getElementById("pub-alert");
+  if (!el) return;
+  el.innerHTML = `<div class="alert alert-${tipo==="ok"?"ok":"err"}">${msg}</div>`;
+  setTimeout(() => { if(el) el.innerHTML=""; }, 5000);
+}
+
+function esc(s) {
+  if (!s) return "";
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// Verificar login salvo
+const savedSenha = localStorage.getItem("bib_admin_senha");
+if (savedSenha) {
+  senha = savedSenha;
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  carregarLista();
+} else {
+  document.getElementById("senha-inp").focus();
+}
+
+// Enter no campo de senha
+document.getElementById("senha-inp").addEventListener("keydown", e => {
+  if (e.key === "Enter") entrar();
+});
+</script>
+</body>
+</html>

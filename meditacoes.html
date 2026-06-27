@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Meditações — Leitura Bíblica IBJP</title>
+<style>
+:root{
+  --bg:#f8f7f4;--surface:#fff;--border:#e5e3dc;--text:#1a1a18;--muted:#6b7280;
+  --accent:#2563eb;--accent-bg:#eff6ff;--accent-border:#bfdbfe;
+  --green:#16a34a;--green-bg:#f0fdf4;--green-border:#bbf7d0;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;--purple-border:#ddd6fe;
+  --amber:#d97706;--amber-bg:#fffbeb;--amber-border:#fde68a;
+  --pink:#be185d;--pink-bg:#fdf2f8;--pink-border:#fbcfe8;
+  --teal:#0f766e;--teal-bg:#f0fdfa;--teal-border:#99f6e4;
+  --r:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#18181b;--surface:#27272a;--border:#3f3f46;--text:#fafafa;--muted:#a1a1aa;
+  --accent:#60a5fa;--accent-bg:#1e3a5f;--accent-border:#1d4ed8;
+  --green:#4ade80;--green-bg:#14532d;--green-border:#166534;
+  --purple:#a78bfa;--purple-bg:#2e1065;--purple-border:#5b21b6;
+  --amber:#fbbf24;--amber-bg:#451a03;--amber-border:#92400e;
+  --pink:#f9a8d4;--pink-bg:#500724;--pink-border:#9d174d;
+  --teal:#2dd4bf;--teal-bg:#042f2e;--teal-border:#115e59;
+}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* Header */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 18px;position:sticky;top:0;z-index:100}
+.hdr-inner{max-width:680px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hdr h1{font-size:16px;font-weight:700}
+.hdr-sub{font-size:12px;color:var(--muted)}
+.hdr-right{display:flex;gap:6px;align-items:center}
+.ibtn{font-size:12px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:99px;padding:5px 12px;cursor:pointer;white-space:nowrap}
+.ibtn:active{background:var(--border)}
+.ibtn.accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* Nome bar */
+.nome-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;gap:10px}
+.nome-bar-inner{max-width:680px;margin:0 auto;display:flex;align-items:center;gap:10px;width:100%}
+.nome-input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r);font-size:14px;background:var(--surface);color:var(--text);outline:none}
+.nome-input:focus{border-color:var(--accent)}
+.nome-btn{padding:8px 16px;border-radius:var(--r);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.nome-set{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.nome-avatar{width:26px;height:26px;border-radius:50%;background:var(--accent-bg);border:1px solid var(--accent-border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0}
+
+/* Filtros */
+.filters{max-width:680px;margin:0 auto;padding:12px 18px 0;display:flex;gap:6px;flex-wrap:wrap}
+.ftag{font-size:12px;padding:5px 12px;border-radius:99px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all .15s}
+.ftag.sel{border-color:var(--accent-border);background:var(--accent-bg);color:var(--accent)}
+.ftag.sel.pastoral{border-color:var(--green-border);background:var(--green-bg);color:var(--green)}
+.ftag.sel.exegese{border-color:var(--purple-border);background:var(--purple-bg);color:var(--purple)}
+.ftag.sel.devocional{border-color:var(--accent-border);background:var(--accent-bg);color:var(--accent)}
+.ftag.sel.ebd{border-color:var(--amber-border);background:var(--amber-bg);color:var(--amber)}
+.ftag.sel.testemunho{border-color:var(--pink-border);background:var(--pink-bg);color:var(--pink)}
+
+/* Main */
+.main{max-width:680px;margin:0 auto;padding:14px 18px 80px}
+.alert{border-radius:var(--r);padding:11px 14px;font-size:13px;margin-bottom:10px}
+.alert-w{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
+.loading{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty h3{font-size:16px;font-weight:500;margin-bottom:6px}
+.empty p{font-size:13px}
+
+/* Cards de meditação */
+.dia-sec{margin-bottom:24px}
+.dia-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.dia-lbl-line{flex:1;height:1px;background:var(--border)}
+.med-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
+.med-card.pastoral{border-left:3px solid var(--green)}
+.med-card.exegese{border-left:3px solid var(--purple)}
+.med-card.devocional{border-left:3px solid var(--accent)}
+.med-card.ebd{border-left:3px solid var(--amber)}
+.med-card.testemunho{border-left:3px solid var(--pink)}
+.med-header{display:flex;align-items:center;gap:10px;padding:14px 16px 10px}
+.med-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.av-g{background:var(--green-bg);color:var(--green)}
+.av-p{background:var(--purple-bg);color:var(--purple)}
+.av-b{background:var(--accent-bg);color:var(--accent)}
+.av-a{background:var(--amber-bg);color:var(--amber)}
+.av-pk{background:var(--pink-bg);color:var(--pink)}
+.med-author{flex:1;min-width:0}
+.med-name{font-size:14px;font-weight:600;color:var(--text)}
+.med-role{font-size:11px;color:var(--muted)}
+.tipo-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:99px;flex-shrink:0}
+.tb-pastoral{background:var(--green-bg);color:var(--green)}
+.tb-exegese{background:var(--purple-bg);color:var(--purple)}
+.tb-devocional{background:var(--accent-bg);color:var(--accent)}
+.tb-ebd{background:var(--amber-bg);color:var(--amber)}
+.tb-testemunho{background:var(--pink-bg);color:var(--pink)}
+.med-title{font-size:15px;font-weight:700;padding:0 16px 6px;line-height:1.3}
+.med-ref{font-size:11px;color:var(--muted);padding:0 16px 8px;font-style:italic}
+.med-text{font-size:14px;line-height:1.75;padding:0 16px 14px;color:var(--text);white-space:pre-wrap}
+.med-text.collapsed{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.ver-mais{font-size:12px;color:var(--accent);cursor:pointer;padding:0 16px 10px;display:block}
+.med-footer{border-top:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px}
+.act-btn{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .15s}
+.act-btn:active{background:var(--bg)}
+.act-btn.curtido{color:var(--pink)}
+.act-btn.curtido svg{fill:var(--pink);stroke:var(--pink)}
+.act-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}
+.med-date{margin-left:auto;font-size:11px;color:var(--muted)}
+
+/* Comentários */
+.coms-section{border-top:1px solid var(--border);background:var(--bg);padding:12px 16px}
+.com-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.com-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.com-header{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.com-av{width:22px;height:22px;border-radius:50%;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent);flex-shrink:0}
+.com-nome{font-size:12px;font-weight:600;color:var(--text)}
+.com-data{font-size:10px;color:var(--muted);margin-left:auto}
+.com-text{font-size:13px;color:var(--text);line-height:1.5}
+.com-input-row{display:flex;gap:6px}
+.com-input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:99px;font-size:13px;background:var(--surface);color:var(--text);outline:none}
+.com-input:focus{border-color:var(--accent)}
+.com-input::placeholder{color:var(--muted)}
+.com-send{padding:8px 14px;border-radius:99px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.com-send:active{opacity:.85}
+.no-name-hint{font-size:12px;color:var(--muted);font-style:italic}
+
+/* Status bar */
+.sbar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 18px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted)}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px}
+.sdot.off{background:#f87171}
+.sdot.sync{background:var(--amber);animation:p 1s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Scroll to dia */
+.dia-nav{display:flex;gap:4px;overflow-x:auto;padding:10px 18px;max-width:680px;margin:0 auto;scrollbar-width:none}
+.dia-nav::-webkit-scrollbar{display:none}
+.dia-pill{flex-shrink:0;font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer}
+.dia-pill:active{background:var(--bg)}
+.dia-pill.has-med{border-color:var(--accent-border);color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-inner">
+    <div>
+      <h1>Meditações Bíblicas</h1>
+      <div class="hdr-sub">IBJP — Plano 6 Meses</div>
+    </div>
+    <div class="hdr-right">
+      <button class="ibtn" onclick="window.location.href='index.html'">← Plano de leitura</button>
+      <button class="ibtn accent" id="btn-admin" onclick="window.location.href='admin.html'" style="display:none">Admin</button>
+    </div>
+  </div>
+</div>
+
+<div class="nome-bar">
+  <div class="nome-bar-inner">
+    <div id="nome-form-area" style="display:flex;align-items:center;gap:8px;flex:1">
+      <input class="nome-input" id="nome-inp" type="text" placeholder="Seu nome para curtir e comentar" maxlength="30">
+      <button class="nome-btn" onclick="definirNome()">Entrar</button>
+    </div>
+    <div id="nome-set-area" style="display:none;flex:1">
+      <div class="nome-set">
+        <div class="nome-avatar" id="nome-av">?</div>
+        <span id="nome-label"></span>
+        <button class="ibtn" style="margin-left:auto" onclick="trocarNome()">Trocar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="filters" id="filters">
+  <span class="ftag sel" data-tipo="todos" onclick="filtrar(this)">Todos</span>
+  <span class="ftag" data-tipo="Pastoral" onclick="filtrar(this)">🌿 Pastoral</span>
+  <span class="ftag" data-tipo="Exegese" onclick="filtrar(this)">📚 Exegese</span>
+  <span class="ftag" data-tipo="Devocional" onclick="filtrar(this)">🕊 Devocional</span>
+  <span class="ftag" data-tipo="EBD" onclick="filtrar(this)">🏫 EBD</span>
+  <span class="ftag" data-tipo="Testemunho" onclick="filtrar(this)">✨ Testemunho</span>
+</div>
+
+<div class="dia-nav" id="dia-nav"></div>
+
+<div class="main">
+  <div id="alert-area"></div>
+  <div id="content"><div class="loading">Carregando meditações…</div></div>
+</div>
+
+<div class="sbar">
+  <span><span class="sdot" id="sdot"></span><span id="stxt">Carregando…</span></span>
+  <span id="s-count" style="color:var(--muted)"></span>
+</div>
+
+<script>
+const SCRIPT = "https://script.google.com/macros/s/AKfycbw8InWSnsnFO5CDRVTw2UlBuSAnfW16OfxjP4i4nvkXRfYzVm9Y629A67Ds_-Fij5m1/exec";
+const LS_NOME = "bib_nome_med";
+const LS_ADMIN = "bib_admin";
+
+let nome = localStorage.getItem(LS_NOME) || "";
+let todasMeds = [];
+let curtidasLocais = {};
+let filtroAtivo = "todos";
+let comsAbertos = {};
+
+function init() {
+  if (nome) mostrarNomeSet();
+  else mostrarNomeForm();
+  if (localStorage.getItem(LS_ADMIN) === "sim") {
+    document.getElementById("btn-admin").style.display = "";
+  }
+  carregarMeditacoes();
+}
+
+function mostrarNomeForm() {
+  document.getElementById("nome-form-area").style.display = "flex";
+  document.getElementById("nome-set-area").style.display = "none";
+}
+function mostrarNomeSet() {
+  document.getElementById("nome-form-area").style.display = "none";
+  document.getElementById("nome-set-area").style.display = "";
+  document.getElementById("nome-av").textContent = nome.charAt(0).toUpperCase();
+  document.getElementById("nome-label").textContent = "Olá, " + nome;
+}
+function definirNome() {
+  const n = document.getElementById("nome-inp").value.trim();
+  if (n.length < 2) { alert("Digite seu nome (mínimo 2 letras)"); return; }
+  nome = n;
+  localStorage.setItem(LS_NOME, nome);
+  mostrarNomeSet();
+  renderMeds();
+}
+function trocarNome() {
+  localStorage.removeItem(LS_NOME);
+  nome = "";
+  document.getElementById("nome-inp").value = "";
+  mostrarNomeForm();
+  renderMeds();
+}
+
+async function carregarMeditacoes() {
+  setStatus("sync", "Carregando…");
+  try {
+    const r = await fetch(SCRIPT + "?action=get_todas_med", { cache: "no-store" });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    todasMeds = (d.meditacoes || []).filter(m => m.ativa === true || m.ativa === "TRUE" || m.ativa === "true" || m.ativa === "");
+    setStatus("ok", todasMeds.length + " meditações");
+    document.getElementById("s-count").textContent = todasMeds.length + " publicações";
+    renderNav();
+    renderMeds();
+  } catch(e) {
+    setStatus("off", "Erro ao carregar");
+    document.getElementById("content").innerHTML =
+      `<div class="alert alert-w">Não foi possível carregar as meditações. Verifique sua conexão.</div>`;
+  }
+}
+
+function renderNav() {
+  const dias = [...new Set(todasMeds.map(m => m.dia))].sort((a,b)=>a-b);
+  const nav = document.getElementById("dia-nav");
+  nav.innerHTML = dias.map(d =>
+    `<span class="dia-pill has-med" onclick="scrollToDia(${d})">Dia ${d}</span>`
+  ).join("");
+}
+
+function filtrar(el) {
+  document.querySelectorAll(".ftag").forEach(t => t.classList.remove("sel","pastoral","exegese","devocional","ebd","testemunho"));
+  el.classList.add("sel");
+  const tipo = el.dataset.tipo;
+  if (tipo !== "todos") el.classList.add(tipo.toLowerCase());
+  filtroAtivo = tipo;
+  renderMeds();
+}
+
+function renderMeds() {
+  let meds = filtroAtivo === "todos" ? todasMeds : todasMeds.filter(m => m.tipo === filtroAtivo);
+  if (meds.length === 0) {
+    document.getElementById("content").innerHTML =
+      `<div class="empty"><h3>Nenhuma meditação ainda</h3><p>As primeiras publicações aparecerão aqui.</p></div>`;
+    return;
+  }
+  // Agrupar por dia
+  const porDia = {};
+  for (const m of meds) {
+    if (!porDia[m.dia]) porDia[m.dia] = [];
+    porDia[m.dia].push(m);
+  }
+  const diasOrdenados = Object.keys(porDia).map(Number).sort((a,b)=>a-b);
+
+  let html = "";
+  for (const dia of diasOrdenados) {
+    const ms = porDia[dia];
+    // Buscar referência do dia no plano (simplificado)
+    html += `<div class="dia-sec" id="dia-${dia}">
+      <div class="dia-lbl">Dia ${dia}<div class="dia-lbl-line"></div></div>`;
+    for (const m of ms) html += medCardHtml(m);
+    html += "</div>";
+  }
+  document.getElementById("content").innerHTML = html;
+}
+
+function medCardHtml(m) {
+  const tipoClass = (m.tipo||"Devocional").toLowerCase();
+  const avClass = {pastoral:"av-g",exegese:"av-p",devocional:"av-b",ebd:"av-a",testemunho:"av-pk"}[tipoClass] || "av-b";
+  const tbClass = "tb-"+tipoClass;
+  const inicial = (m.autor||"?").charAt(0).toUpperCase();
+  const curtido = curtidasLocais[m.id] ? " curtido" : "";
+  const curtidas = m.curtidas || 0;
+  const dataStr = m.data ? new Date(m.data).toLocaleDateString("pt-BR",{day:"numeric",month:"short"}) : "";
+  const textoLongo = (m.texto||"").length > 300;
+  const textoH = textoLongo
+    ? `<div class="med-text collapsed" id="txt-${m.id}">${esc(m.texto)}</div><span class="ver-mais" onclick="expandir('${m.id}')">Ver mais</span>`
+    : `<div class="med-text">${esc(m.texto)}</div>`;
+
+  const comsSection = comsAbertos[m.id]
+    ? comsHtml(m.id)
+    : `<div class="coms-section" id="coms-${m.id}" style="display:none"></div>`;
+
+  return `<div class="med-card ${tipoClass}" id="med-${m.id}">
+    <div class="med-header">
+      <div class="med-avatar ${avClass}">${inicial}</div>
+      <div class="med-author"><div class="med-name">${esc(m.autor)}</div><div class="med-role">${esc(m.papel||"")}</div></div>
+      <span class="tipo-badge ${tbClass}">${esc(m.tipo)}</span>
+    </div>
+    <div class="med-title">${esc(m.titulo)}</div>
+    ${textoH}
+    <div class="med-footer">
+      <button class="act-btn${curtido}" onclick="curtirMed('${m.id}',this)" title="Curtir">
+        <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span id="c-${m.id}">${curtidas}</span>
+      </button>
+      <button class="act-btn" onclick="toggleComs('${m.id}')" title="Comentários">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span id="cc-${m.id}">Comentários</span>
+      </button>
+      <span class="med-date">${dataStr}</span>
+    </div>
+    ${comsSection}
+  </div>`;
+}
+
+function comsHtml(medId) {
+  return `<div class="coms-section" id="coms-${medId}">
+    <div class="com-list" id="com-list-${medId}"><div style="font-size:12px;color:var(--muted)">Carregando comentários…</div></div>
+    ${nome
+      ? `<div class="com-input-row"><input class="com-input" id="com-inp-${medId}" placeholder="Escreva um comentário…" maxlength="500"><button class="com-send" onclick="enviarCom('${medId}')">Enviar</button></div>`
+      : `<p class="no-name-hint">Digite seu nome acima para comentar.</p>`
+    }
+  </div>`;
+}
+
+async function toggleComs(medId) {
+  const el = document.getElementById("coms-"+medId);
+  if (comsAbertos[medId]) {
+    el.style.display = "none";
+    delete comsAbertos[medId];
+  } else {
+    el.innerHTML = comsHtml(medId).replace(/<div class="coms-section"[^>]*>/, "").replace(/<\/div>$/, "");
+    el.style.display = "";
+    comsAbertos[medId] = true;
+    await carregarComs(medId);
+  }
+}
+
+async function carregarComs(medId) {
+  try {
+    const r = await fetch(SCRIPT + "?action=get_comentarios&med_id=" + medId, { cache:"no-store" });
+    const d = await r.json();
+    const coms = d.comentarios || [];
+    const list = document.getElementById("com-list-"+medId);
+    if (!list) return;
+    if (coms.length === 0) {
+      list.innerHTML = `<p style="font-size:12px;color:var(--muted)">Sem comentários ainda. Seja o primeiro!</p>`;
+    } else {
+      list.innerHTML = coms.map(c => `
+        <div class="com-item">
+          <div class="com-header">
+            <div class="com-av">${c.autor.charAt(0).toUpperCase()}</div>
+            <span class="com-nome">${esc(c.autor)}</span>
+            <span class="com-data">${new Date(c.data).toLocaleDateString("pt-BR",{day:"numeric",month:"short"})}</span>
+          </div>
+          <div class="com-text">${esc(c.texto)}</div>
+        </div>`).join("");
+    }
+    document.getElementById("cc-"+medId).textContent = coms.length + (coms.length===1?" comentário":" comentários");
+  } catch(e) {}
+}
+
+async function curtirMed(medId, btn) {
+  if (!nome) { alert("Digite seu nome primeiro para curtir."); return; }
+  const jaFez = curtidasLocais[medId];
+  curtidasLocais[medId] = !jaFez;
+  const n = parseInt(document.getElementById("c-"+medId).textContent) || 0;
+  document.getElementById("c-"+medId).textContent = jaFez ? Math.max(0,n-1) : n+1;
+  btn.classList.toggle("curtido", !jaFez);
+  try {
+    await fetch(SCRIPT + "?action=curtir&med_id="+medId+"&nome="+encodeURIComponent(nome), {cache:"no-store"});
+  } catch(e) {}
+}
+
+async function enviarCom(medId) {
+  if (!nome) return;
+  const inp = document.getElementById("com-inp-"+medId);
+  const texto = inp.value.trim();
+  if (!texto) return;
+  inp.value = ""; inp.disabled = true;
+  try {
+    await fetch(SCRIPT+"?action=comentar&med_id="+medId+"&nome="+encodeURIComponent(nome)+"&texto="+encodeURIComponent(texto), {cache:"no-store"});
+    await carregarComs(medId);
+  } catch(e) {
+    inp.value = texto;
+  }
+  inp.disabled = false;
+}
+
+function expandir(id) {
+  const el = document.getElementById("txt-"+id);
+  el.classList.remove("collapsed");
+  el.nextElementSibling.style.display = "none";
+}
+
+function scrollToDia(dia) {
+  document.getElementById("dia-"+dia)?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function esc(s) {
+  if (!s) return "";
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function setStatus(s,t) {
+  const dot=document.getElementById("sdot"),txt=document.getElementById("stxt");
+  if(s==="ok"){dot.className="sdot";txt.textContent=t||"Sincronizado";}
+  if(s==="off"){dot.className="sdot off";txt.textContent=t||"Offline";}
+  if(s==="sync"){dot.className="sdot sync";txt.textContent=t||"Carregando…";}
+}
+
+init();
+</script>
+</body>
+</html>
