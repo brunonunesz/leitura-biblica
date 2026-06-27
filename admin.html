@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Admin — Meditações IBJP</title>
+<script>(function(){try{var t=localStorage.getItem('bib_tema')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <style>
 :root{
   --bg:#f8f7f4;--surface:#fff;--border:#e5e3dc;--text:#1a1a18;--muted:#6b7280;
@@ -15,7 +16,7 @@
   --red:#dc2626;--red-bg:#fef2f2;--red-border:#fecaca;
   --r:12px;
 }
-@media(prefers-color-scheme:dark){:root{
+:root[data-theme="dark"]{
   --bg:#18181b;--surface:#27272a;--border:#3f3f46;--text:#fafafa;--muted:#a1a1aa;
   --accent:#60a5fa;--accent-bg:#1e3a5f;--accent-border:#1d4ed8;
   --green:#4ade80;--green-bg:#14532d;--green-border:#166534;
@@ -23,7 +24,7 @@
   --amber:#fbbf24;--amber-bg:#451a03;--amber-border:#92400e;
   --pink:#f9a8d4;--pink-bg:#500724;--pink-border:#9d174d;
   --red:#f87171;--red-bg:#450a0a;--red-border:#991b1b;
-}}
+}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 

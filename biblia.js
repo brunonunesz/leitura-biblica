@@ -90,3 +90,31 @@ function refLabel(m){
   if(!ini) return nome;
   return fim>ini ? `${nome} ${ini}–${fim}` : `${nome} ${ini}`;
 }
+
+/* ── Tema claro/escuro (compartilhado pelas 3 páginas) ──
+   O <head> de cada página já aplica o tema salvo/do sistema sem piscar.
+   Aqui injetamos o botão flutuante de alternar e persistimos a escolha. */
+const LS_TEMA="bib_tema";
+function _temaAtual(){
+  return document.documentElement.getAttribute("data-theme")
+    || (matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
+}
+function aplicarTema(t){
+  document.documentElement.setAttribute("data-theme",t);
+  try{ localStorage.setItem(LS_TEMA,t); }catch(e){}
+  const b=document.getElementById("tema-btn");
+  if(b){ b.textContent = t==="dark" ? "☀️" : "🌙"; b.title = "Mudar para tema "+(t==="dark"?"claro":"escuro"); }
+}
+function alternarTema(){ aplicarTema(_temaAtual()==="dark"?"light":"dark"); }
+function _initTema(){
+  if(!document.documentElement.getAttribute("data-theme")) aplicarTema(_temaAtual());
+  if(document.getElementById("tema-btn")) return;
+  const b=document.createElement("button");
+  b.id="tema-btn"; b.type="button"; b.onclick=alternarTema;
+  b.textContent = _temaAtual()==="dark" ? "☀️" : "🌙";
+  b.title = "Mudar para tema "+(_temaAtual()==="dark"?"claro":"escuro");
+  b.style.cssText="position:fixed;bottom:14px;right:14px;z-index:9999;width:42px;height:42px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:18px;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;padding:0";
+  document.body.appendChild(b);
+}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",_initTema);
+else _initTema();
