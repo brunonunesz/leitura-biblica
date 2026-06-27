@@ -241,6 +241,7 @@ async function carregarMeditacoes() {
     const r = await fetch(SCRIPT + "?action=get_todas_med", { cache: "no-store" });
     const d = await r.json();
     if (d.error) throw new Error(d.error);
+    // Guardar texto completo antes de filtrar
     todasMeds = (d.meditacoes || []).filter(m => m.ativa === true || m.ativa === "TRUE" || m.ativa === "true" || m.ativa === "");
     setStatus("ok", todasMeds.length + " meditações");
     document.getElementById("s-count").textContent = todasMeds.length + " publicações";
@@ -434,6 +435,7 @@ function setStatus(s,t) {
 }
 
 init();
+fetch(SCRIPT+"?action=ping",{cache:"no-store"}).catch(()=>{});
 </script>
 </body>
 </html>
