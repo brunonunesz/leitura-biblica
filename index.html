@@ -320,6 +320,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 
     <div id="plan-resumo" class="s-hint" style="margin-top:14px;font-weight:600;"></div>
     <button class="s-btn" onclick="confirmarPlano()">Começar a ler</button>
+    <button id="reset-link" type="button" style="display:none;margin-top:12px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:underline" onclick="abrirReset()">↺ Recomeçar do zero (apagar meu progresso)</button>
+  </div>
+</div>
+
+<!-- Confirmação de recomeço -->
+<div id="reset-modal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px">
+  <div class="s-card" style="max-width:380px;text-align:center">
+    <div style="font-size:36px">⚠️</div>
+    <h1 style="font-size:19px">Recomeçar do zero?</h1>
+    <p>Isso vai <strong>desmarcar todos os capítulos</strong> que você já leu e zerar seu progresso. Suas anotações são mantidas.<br><br>Esta ação <strong>não pode ser desfeita</strong>.</p>
+    <button class="s-btn" style="background:#dc2626" onclick="confirmarReset()">Sim, recomeçar</button>
+    <button class="s-btn" style="background:transparent;color:var(--muted);border:1px solid var(--border);margin-top:8px" onclick="fecharReset()">Cancelar</button>
   </div>
 </div>
 
@@ -524,6 +536,8 @@ function mostrarChooser(){
   document.getElementById("chooser").style.display="flex";
   const cd=document.getElementById("cf-dias");
   cd.onclick=e=>{ if(e.target.classList.contains("cf-dia")){ e.target.classList.toggle("sel"); atualizarResumo(); } };
+  // "recomeçar do zero" só aparece pra quem já tem plano/progresso
+  document.getElementById("reset-link").style.display = plano ? "inline-block" : "none";
   selTipo(plano ? (plano.oficial?"oficial":(plano.config.nome?"teens":"gerado")) : "oficial");
 }
 function selTipo(t){
@@ -587,6 +601,23 @@ function confirmarPlano(){
   mostrarApp();
 }
 function trocarPlano(){ mostrarChooser(); }
+
+/* Recomeçar do zero (com confirmação) */
+function abrirReset(){ document.getElementById("reset-modal").style.display="flex"; }
+function fecharReset(){ document.getElementById("reset-modal").style.display="none"; }
+async function confirmarReset(){
+  const refs=Object.keys(lidos);
+  lidos={}; salvarCache();
+  fecharReset();
+  mostrarApp();
+  // desmarca no servidor em lotes (usa a rota marcar existente)
+  for(let i=0;i<refs.length;i+=120){
+    const lote=refs.slice(i,i+120);
+    try{ await fetch(SCRIPT+"?action=marcar&nome="+encodeURIComponent(nome)
+      +"&caps="+encodeURIComponent(lote.join(","))+"&done=false",{cache:"no-store"}); }catch(e){}
+  }
+  setStatus("ok"); clearAlert();
+}
 
 /* Sync */
 async function sincronizar(manual){
@@ -754,13 +785,16 @@ async function carregarRanking(){
     const r=await fetch(SCRIPT+"?action=listar_usuarios",{cache:"no-store"});
     const d=await r.json();
     if(!d.usuarios||d.usuarios.length<2){document.getElementById("ranking-sec").innerHTML="";return;}
+    // usa 'get' (retorna plano + lidos) para calcular a % relativa ao plano de cada um
     const infos=await Promise.all(d.usuarios.map(u=>
-      fetch(SCRIPT+"?action=info&nome="+encodeURIComponent(u.nome)).then(r=>r.json()).catch(()=>null)
+      fetch(SCRIPT+"?action=get&nome="+encodeURIComponent(u.nome)).then(r=>r.json()).catch(()=>null)
     ));
-    const lista=infos.filter(Boolean).map(u=>{
-      const total=u.total||TOTAL_CAPS, caps=u.caps_lidos||0;
-      return {nome:u.nome,caps,pct:Math.round(caps/total*100)};
-    }).sort((a,b)=>b.caps-a.caps);
+    const lista=infos.filter(Boolean).map((u,i)=>{
+      const caps=u.lidos?Object.keys(u.lidos).length:0;
+      const total=totalCapsPlano(u.plano)||TOTAL_CAPS;
+      const pctNum=total?Math.min(100,caps/total*100):0;
+      return {nome:u.nome||d.usuarios[i].nome, caps, pctNum};
+    }).sort((a,b)=>b.pctNum-a.pctNum || b.caps-a.caps);
     renderRanking(lista);
   }catch(e){}
 }
@@ -771,15 +805,16 @@ function renderRanking(lista){
   const pos=["1°","2°","3°"];
   const rows=lista.map((u,i)=>{
     const me=u.nome.toLowerCase()===nome.toLowerCase();
-    const pct=u.pct||0;
+    const pctNum=u.pctNum||0;
+    const pctStr=pctNum.toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
     const mc=i<3?medal[i]:"";
     const pl=i<3?pos[i]:(i+1)+"°";
     return`<div class="rank-row">
       <div class="rank-pos ${mc}">${pl}</div>
       <div class="rank-av">${u.nome.charAt(0).toUpperCase()}</div>
       <div class="rank-name ${me?"me":""}">${u.nome}${me?" (você)":""}</div>
-      <div class="rank-bar-w"><div class="rank-bar" style="width:${pct}%"></div></div>
-      <div class="rank-pct">${pct}%</div>
+      <div class="rank-bar-w"><div class="rank-bar" style="width:${pctNum}%"></div></div>
+      <div class="rank-pct">${pctStr}</div>
     </div>`;
   }).join("");
   document.getElementById("ranking-sec").innerHTML=

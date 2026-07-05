@@ -122,6 +122,13 @@ function gerarPlano(cfg){
   return{config:cfg,total_dias:D,total_caps:L,dias};
 }
 
+// total de capítulos do escopo de um plano (para % relativa ao próprio plano)
+function totalCapsPlano(cfg){
+  if(!cfg || cfg.tipo==="oficial") return TOTAL_CAPS;
+  const {streams}=(ORDENS[cfg.ordem]||ORDENS.sequencial)();
+  return streams.reduce((s,st)=>s+st.length,0);
+}
+
 /* ── Helpers de exibição (usados por admin.html e meditacoes.html) ── */
 // LIVROS = [[id,nome,caps], ...] na ordem canônica — para selects e rótulos.
 const LIVROS=BIBLIA.map(b=>[b.id,b.nome,b.caps]);
