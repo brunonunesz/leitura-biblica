@@ -709,14 +709,27 @@ function setStatus(s){
 function showAlert(m){document.getElementById("alert-area").innerHTML=`<div class="alert alert-w">${m}</div>`;}
 function clearAlert(){document.getElementById("alert-area").innerHTML="";}
 
+// data local YYYY-MM-DD de um Date
+function _ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function calcStreak(){
-  if(!plano) return {streak:0,best:0};
-  const N=plano.total_dias;
-  let best=0,cur=0;
-  for(let i=1;i<=N;i++){ if(isDone(i)){cur++;best=Math.max(best,cur);} else cur=0; }
-  // Streak atual = sequência consecutiva que chega ao fim do progresso
-  cur=0; for(let i=N;i>=1;i--){ if(isDone(i))cur++; else break; }
-  return {streak:cur,best};
+  // "dias seguidos" = dias de calendário consecutivos em que a pessoa leu algo
+  // (baseado nas datas de leitura em `lidos`, não nos índices do plano).
+  const datas=[...new Set(Object.values(lidos).filter(Boolean).map(v=>_ymd(new Date(v))))].sort();
+  if(!datas.length) return {streak:0,best:0};
+  // recorde: maior sequência de dias consecutivos já feita
+  let best=1,run=1;
+  for(let i=1;i<datas.length;i++){
+    const diff=Math.round((new Date(datas[i])-new Date(datas[i-1]))/86400000);
+    run = diff===1 ? run+1 : 1;
+    if(run>best) best=run;
+  }
+  // streak atual: conta a partir de hoje (ou de ontem, se ainda não leu hoje)
+  const set=new Set(datas);
+  const cursor=new Date(); cursor.setHours(0,0,0,0);
+  if(!set.has(_ymd(cursor))){ cursor.setDate(cursor.getDate()-1); if(!set.has(_ymd(cursor))) return {streak:0,best}; }
+  let streak=0;
+  while(set.has(_ymd(cursor))){ streak++; cursor.setDate(cursor.getDate()-1); }
+  return {streak,best};
 }
 
 function calcForecast(){
