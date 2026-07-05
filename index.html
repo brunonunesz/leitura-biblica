@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>Leitura Bíblica — 6 Meses</title>
+<title>Leitura Bíblica</title>
 <script>(function(){try{var t=localStorage.getItem('bib_tema')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <style>
 :root{
@@ -230,12 +230,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 <div id="setup" class="on">
   <div class="s-icon">✝</div>
   <div class="s-card">
-    <h1>Plano de Leitura Bíblica<br>6 Meses</h1>
+    <h1>Leitura Bíblica</h1>
+    <p style="margin-top:-6px;font-weight:600;color:var(--accent)">Leia a Bíblia toda, no seu ritmo</p>
     <p>Digite seu nome para entrar. Cada pessoa tem seu progresso individual, sincronizado entre todos os dispositivos.</p>
     <input class="s-input" id="inp-nome" type="text" placeholder="Seu nome (ex: Bruno)" maxlength="30" autocomplete="off">
     <div id="s-err" class="s-err"></div>
     <button class="s-btn" onclick="entrar()">Entrar</button>
     <p class="s-hint">Primeira vez? Só digitar o nome e entrar.<br>Seu progresso será salvo automaticamente.</p>
+    <div id="home-verse" style="margin-top:22px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-bg);border-radius:8px;text-align:left"></div>
   </div>
 </div>
 
@@ -463,10 +465,32 @@ function init(){
   else { mostrarChooser(); sincronizar(false); }
 }
 
+// Versículos que incentivam a leitura da Palavra (rotativo por dia)
+const VERSICULOS_HOME=[
+  {t:"Lâmpada para os meus pés é a tua palavra e luz para o meu caminho.",r:"Salmo 119.105"},
+  {t:"Toda a Escritura é inspirada por Deus e útil para o ensino, a repreensão, a correção e a instrução na justiça.",r:"2 Timóteo 3.16"},
+  {t:"O céu e a terra passarão, mas as minhas palavras jamais passarão.",r:"Mateus 24.35"},
+  {t:"Medite no livro da Lei dia e noite, para que você cumpra tudo o que nele está escrito.",r:"Josué 1.8"},
+  {t:"Como são doces as tuas palavras ao meu paladar! Mais que o mel à minha boca.",r:"Salmo 119.103"},
+  {t:"Recebam com humildade a palavra implantada em vocês, a qual é poderosa para salvá-los.",r:"Tiago 1.21"},
+  {t:"Desejem de coração o leite espiritual puro, para que por meio dele cresçam.",r:"1 Pedro 2.2"},
+  {t:"Que a palavra de Cristo habite ricamente em vocês.",r:"Colossenses 3.16"},
+  {t:"Feliz é aquele que tem prazer na lei do Senhor e nela medita dia e noite.",r:"Salmo 1.1-2"},
+  {t:"Quando as tuas palavras foram encontradas, eu as comi; elas são a alegria do meu coração.",r:"Jeremias 15.16"},
+];
+function versiculoDoDia(){
+  const el=document.getElementById("home-verse"); if(!el) return;
+  const hoje=new Date();
+  const diaAno=Math.floor((hoje-new Date(hoje.getFullYear(),0,0))/86400000);
+  const v=VERSICULOS_HOME[diaAno % VERSICULOS_HOME.length];
+  el.innerHTML=`<p style="font-size:14px;line-height:1.6;font-style:italic;color:var(--text)">“${v.t}”</p>`
+    +`<p style="font-size:12px;color:var(--accent);font-weight:700;margin-top:6px">${v.r}</p>`;
+}
 function mostrarSetup(){
   document.getElementById("setup").classList.add("on");
   document.getElementById("chooser").style.display="none";
   document.getElementById("app").style.display="none";
+  versiculoDoDia();
 }
 function mostrarApp(){
   document.getElementById("setup").classList.remove("on");
