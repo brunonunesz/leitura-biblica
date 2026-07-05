@@ -665,7 +665,7 @@ async function sincronizar(manual){
     salvarCache();
     setStatus("ok"); clearAlert();
     if(plano && document.getElementById("app").style.display==="none") mostrarApp();
-    if(manual) carregarRanking();
+    carregarRanking(); // sempre (mostra o ranking ou a mensagem explicativa)
   } catch(e){
     setStatus("off");
     if(plano) showAlert("Sem conexão. Mostrando dados em cache.");
@@ -804,11 +804,17 @@ function calcForecast(){
 }
 
 /* Ranking */
+// caixa do ranking com uma mensagem (quando não há ranking pra mostrar)
+function _rankingMsg(msg){
+  document.getElementById("ranking-sec").innerHTML=
+    `<div class="rank-card"><div class="rank-title">Progresso do grupo</div>`
+    +`<div style="padding:16px 6px;font-size:13px;color:var(--muted);line-height:1.6;text-align:center">${msg}</div></div>`;
+}
 async function carregarRanking(){
   try{
     const r=await fetch(SCRIPT+"?action=listar_usuarios",{cache:"no-store"});
     const d=await r.json();
-    if(!d.usuarios||d.usuarios.length<2){document.getElementById("ranking-sec").innerHTML="";return;}
+    if(!d.usuarios||d.usuarios.length<2){ _rankingMsg("👥 O ranking do grupo aparece quando houver <strong>2 ou mais pessoas</strong> lendo. Convide alguém para ler junto! 📖"); return; }
     // usa 'get' (retorna plano + lidos) para calcular a % relativa ao plano de cada um
     const infos=await Promise.all(d.usuarios.map(u=>
       fetch(SCRIPT+"?action=get&nome="+encodeURIComponent(u.nome)).then(r=>r.json()).catch(()=>null)
@@ -820,11 +826,15 @@ async function carregarRanking(){
       return {nome:u.nome||d.usuarios[i].nome, caps, pctNum};
     }).sort((a,b)=>b.pctNum-a.pctNum || b.caps-a.caps);
     renderRanking(lista);
-  }catch(e){}
+  }catch(e){
+    // se não há nada mostrado ainda, explica que foi falha de conexão
+    if(!document.getElementById("ranking-sec").innerHTML.trim())
+      _rankingMsg("Não foi possível carregar o ranking agora. Toque em ↻ Sync para tentar de novo.");
+  }
 }
 
 function renderRanking(lista){
-  if(!lista||lista.length<2){document.getElementById("ranking-sec").innerHTML="";return;}
+  if(!lista||lista.length<2){ _rankingMsg("👥 O ranking do grupo aparece quando houver <strong>2 ou mais pessoas</strong> lendo. Convide alguém para ler junto! 📖"); return; }
   const medal=["g","s","b"];
   const pos=["1°","2°","3°"];
   const rows=lista.map((u,i)=>{
