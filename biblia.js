@@ -63,16 +63,61 @@ function _comprimir(refs){
     if(u&&u.id===id&&cap===u.fim+1)u.fim=cap;else bl.push({id,nome:b.nome,test:b.test,ini:cap,fim:cap});}
   return bl.map(b=>({livro:b.nome,test:b.test,ref:b.ini===b.fim?`${b.nome} ${b.ini}`:`${b.nome} ${b.ini}–${b.fim}`,url:`https://www.bible.com/pt/bible/129/${b.id}.${b.ini}.NVI`,caps:b.fim-b.ini+1}));
 }
+// Capítulos "gigantes" (muitos versículos) — no modo progressivo eles ficam
+// sozinhos no dia para não pesar. ref → nº de versículos (aprox., p/ ponderar).
+const GRANDES={
+  "PSA.119":176,"NUM.7":89,"1CH.6":81,"LUK.1":80,"MAT.26":75,"NEH.7":73,
+  "PSA.78":72,"DEU.28":68,"GEN.24":67,"1KI.8":66,"NUM.26":65,"JER.51":64,
+  "JOS.15":63,"ACT.7":60,"1SA.17":58,"GEN.41":57
+};
+const _MEDIA_VERS=26; // média de versículos por capítulo (~31k/1189)
+function _peso(ref){ const v=GRANDES[ref]; return v?Math.max(2,Math.round(v/_MEDIA_VERS)):1; }
+// nº de dias de leitura em N meses lendo `ndias` dias por semana
+function _diasLeitura(meses,ndias){ return Math.max(1,Math.round((meses||6)*30.4*(ndias||7)/7)); }
+
+function _montaDia(n,rd){
+  const bl=_comprimir(rd);
+  return{dia:n,refs:rd,at:bl.filter(b=>b.test==="AT"),nt:bl.filter(b=>b.test==="NT"),salmo:null,total_caps:rd.length};
+}
+
+// distribuição progressiva: começa leve (~1 cap/dia) e vai subindo, ponderando
+// pelos versículos (capítulos gigantes ocupam o dia sozinhos).
+function _distribProgressivo(refs,D){
+  const w=refs.map(_peso), W=w.reduce((a,b)=>a+b,0), L=refs.length, EXP=1.6;
+  const dias=[]; let k=0, cum=0;
+  for(let d=0; d<D && k<L; d++){
+    const B=(d===D-1)?W:W*Math.pow((d+1)/D,EXP); // meta cumulativa de peso
+    const rd=[];
+    do{
+      const big=_peso(refs[k])>=3;
+      if(rd.length && big) break;      // gigante não entra em dia que já começou
+      rd.push(refs[k]); cum+=w[k]; k++;
+      if(big) break;                   // gigante fecha o dia (fica sozinho)
+    }while(k<L && cum<B);
+    dias.push(rd);
+  }
+  while(k<L) dias[dias.length-1].push(refs[k++]); // sobra de arredondamento
+  return dias;
+}
+
 function gerarPlano(cfg){
   const{streams}=(ORDENS[cfg.ordem]||ORDENS.sequencial)();
   const L=streams.reduce((s,st)=>s+st.length,0);
-  let D=cfg.modo==="ritmo"?Math.ceil(L/Math.max(1,cfg.capsDia)):Math.round((cfg.meses||6)*30.4);
-  D=Math.max(1,D);
+  const ndias=(cfg.dias_semana&&cfg.dias_semana.length)?cfg.dias_semana.length:7;
+
+  if(cfg.modo==="progressivo"){
+    const D=_diasLeitura(cfg.meses,ndias);
+    const flat=streams.reduce((a,s)=>a.concat(s),[]);
+    const dias=_distribProgressivo(flat,D).map((rd,i)=>_montaDia(i+1,rd));
+    return{config:cfg,total_dias:dias.length,total_caps:L,dias};
+  }
+
+  let D=cfg.modo==="ritmo"?Math.ceil(L/Math.max(1,cfg.capsDia)):_diasLeitura(cfg.meses,ndias);
+  D=Math.max(1,Math.min(D,L)); // não faz sentido ter mais dias de leitura que capítulos
   const tams=streams.map(st=>_tamanhos(st.length,D)),cur=streams.map(()=>0),dias=[];
   for(let i=0;i<D;i++){
     const rd=[];streams.forEach((st,si)=>{for(let k=0;k<tams[si][i];k++)rd.push(st[cur[si]++]);});
-    const bl=_comprimir(rd);
-    dias.push({dia:i+1,refs:rd,at:bl.filter(b=>b.test==="AT"),nt:bl.filter(b=>b.test==="NT"),salmo:null,total_caps:rd.length});
+    dias.push(_montaDia(i+1,rd));
   }
   return{config:cfg,total_dias:D,total_caps:L,dias};
 }

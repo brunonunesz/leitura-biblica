@@ -262,6 +262,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
       <strong>⭐ Plano IBJP — 6 meses</strong>
       <span>Bíblia toda, AT + NT intercalados, com devocional diário (versículo, conexões e contexto)</span>
     </button>
+    <button type="button" class="plan-opt" data-tipo="teens" onclick="selTipo('teens')">
+      <strong>🔥 Ministério Teens e Jovens</strong>
+      <span>Para iniciantes: sequencial e progressivo — começa com 1 cap/dia e vai aumentando até ler a Bíblia toda em 1 ano (domingo livre)</span>
+    </button>
     <button type="button" class="plan-opt" data-tipo="gerado" onclick="selTipo('gerado')">
       <strong>⚙️ Personalizar</strong>
       <span>Escolher a ordem, o ritmo e a duração da leitura</span>
@@ -281,6 +285,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
       <select id="cf-modo" class="s-input" onchange="atualizarResumo()">
         <option value="duracao">Por duração (quero terminar em X meses)</option>
         <option value="ritmo">Por ritmo (quero ler X capítulos/dia)</option>
+        <option value="progressivo">Progressivo (começa leve e vai aumentando)</option>
       </select>
 
       <div id="cf-dur-box">
@@ -304,7 +309,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
         </select>
       </div>
 
-      <label class="cf-lbl">Dias que você costuma ler (afeta só a previsão)</label>
+      <label class="cf-lbl">Dias que você lê na semana (domingo desmarcado = Dia do Senhor livre)</label>
       <div id="cf-dias" class="cf-dias">
         <span class="cf-dia sel" data-d="1">Seg</span><span class="cf-dia sel" data-d="2">Ter</span>
         <span class="cf-dia sel" data-d="3">Qua</span><span class="cf-dia sel" data-d="4">Qui</span>
@@ -502,10 +507,15 @@ function sair(){
 
 /* ── Escolha de plano ── */
 let _tipoSel="oficial";
+// Preset do Ministério Teens e Jovens (iniciantes)
+const CFG_TEENS={tipo:"gerado",nome:"Teens e Jovens",ordem:"sequencial",modo:"progressivo",meses:12,dias_semana:[1,2,3,4,5,6]};
+
 function planoLabel(){
   if(!plano)return"";
   if(plano.oficial)return"Plano IBJP · 6 meses";
-  const c=plano.config, dur=c.modo==="ritmo"?(c.capsDia+" cap/dia"):(c.meses+" meses");
+  const c=plano.config;
+  if(c.nome) return c.nome+" · "+plano.total_dias+" dias";
+  const dur=c.modo==="ritmo"?(c.capsDia+" cap/dia"):(c.meses+" meses");
   return (ORDEM_NOMES[c.ordem]||"Personalizado").split(" (")[0]+" · "+dur+" · "+plano.total_dias+" dias";
 }
 function mostrarChooser(){
@@ -513,8 +523,8 @@ function mostrarChooser(){
   document.getElementById("app").style.display="none";
   document.getElementById("chooser").style.display="flex";
   const cd=document.getElementById("cf-dias");
-  cd.onclick=e=>{ if(e.target.classList.contains("cf-dia")) e.target.classList.toggle("sel"); };
-  selTipo(plano&&!plano.oficial?"gerado":"oficial");
+  cd.onclick=e=>{ if(e.target.classList.contains("cf-dia")){ e.target.classList.toggle("sel"); atualizarResumo(); } };
+  selTipo(plano ? (plano.oficial?"oficial":(plano.config.nome?"teens":"gerado")) : "oficial");
 }
 function selTipo(t){
   _tipoSel=t;
@@ -533,14 +543,32 @@ function lerConfigCustom(){
     dias_semana:dias.length?dias:[1,2,3,4,5,6],
   };
 }
+function _fmtData(d){ return d.toLocaleDateString("pt-BR",{day:"numeric",month:"long",year:"numeric"}); }
+// data do D-ésimo dia de leitura a partir de hoje, pulando dias fora de diasSemana
+function _dataTermino(D,diasSemana){
+  const set=new Set((diasSemana&&diasSemana.length)?diasSemana:[0,1,2,3,4,5,6]);
+  const d=new Date(); let n=0,guard=0;
+  while(guard++<20000){ if(set.has(d.getDay())){ n++; if(n>=D) break; } d.setDate(d.getDate()+1); }
+  return d;
+}
+// ritmo aproximado no fim do plano (média dos ~10% últimos dias)
+function _rampFim(p){ const n=Math.max(1,Math.floor(p.total_dias*0.1)),u=p.dias.slice(-n); return Math.round(u.reduce((s,d)=>s+d.refs.length,0)/u.length); }
 function atualizarResumo(){
-  const modo=document.getElementById("cf-modo").value;
-  document.getElementById("cf-dur-box").style.display=modo==="duracao"?"block":"none";
-  document.getElementById("cf-ritmo-box").style.display=modo==="ritmo"?"block":"none";
   const el=document.getElementById("plan-resumo");
   if(_tipoSel==="oficial"){ el.textContent="📖 144 dias · Bíblia completa em 6 meses, com devocional diário."; return; }
-  const p=gerarPlano(lerConfigCustom());
-  el.textContent=`📖 ${p.total_dias} dias · ${p.total_caps} capítulos · ~${(p.total_caps/p.total_dias).toFixed(1)} cap/dia`;
+  if(_tipoSel==="teens"){
+    const p=gerarPlano(CFG_TEENS), fim=_dataTermino(p.total_dias,CFG_TEENS.dias_semana);
+    el.innerHTML=`🔥 Sequencial · começa com 1 cap/dia e sobe até ~${_rampFim(p)} cap/dia<br>📖 ${p.total_dias} dias (seg–sáb) · Bíblia toda · termina ~${_fmtData(fim)}`;
+    return;
+  }
+  const modo=document.getElementById("cf-modo").value;
+  document.getElementById("cf-dur-box").style.display=(modo==="ritmo")?"none":"block";
+  document.getElementById("cf-ritmo-box").style.display=(modo==="ritmo")?"block":"none";
+  const cfg=lerConfigCustom(), p=gerarPlano(cfg), fim=_dataTermino(p.total_dias,cfg.dias_semana);
+  const ritmoTxt = cfg.modo==="progressivo"
+    ? `começa leve e sobe até ~${_rampFim(p)} cap/dia`
+    : `~${(p.total_caps/p.total_dias).toFixed(1)} cap/dia`;
+  el.innerHTML=`📖 ${p.total_dias} dias · ${p.total_caps} capítulos · ${ritmoTxt}<br>🗓️ ${cfg.dias_semana.length} dias/semana · termina ~${_fmtData(fim)}`;
 }
 function aplicarPlano(cfg,persistServer){
   plano=construirPlano(cfg);
@@ -552,7 +580,9 @@ function aplicarPlano(cfg,persistServer){
   }
 }
 function confirmarPlano(){
-  const cfg=_tipoSel==="oficial"?{tipo:"oficial"}:lerConfigCustom();
+  const cfg = _tipoSel==="oficial" ? {tipo:"oficial"}
+            : _tipoSel==="teens"   ? CFG_TEENS
+            : lerConfigCustom();
   aplicarPlano(cfg,true);
   mostrarApp();
 }
