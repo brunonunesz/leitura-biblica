@@ -630,16 +630,13 @@ function trocarPlano(){ mostrarChooser(); }
 function abrirReset(){ document.getElementById("reset-modal").style.display="flex"; }
 function fecharReset(){ document.getElementById("reset-modal").style.display="none"; }
 async function confirmarReset(){
-  const refs=Object.keys(lidos);
-  lidos={}; salvarCache();
+  const p=pid();
+  const refs=Object.keys(lidos).filter(k=>k.indexOf(p+"|")===0); // só o plano ativo
+  refs.forEach(k=>delete lidos[k]);
+  salvarCache();
   fecharReset();
   mostrarApp();
-  // desmarca no servidor em lotes (usa a rota marcar existente)
-  for(let i=0;i<refs.length;i+=120){
-    const lote=refs.slice(i,i+120);
-    try{ await fetch(SCRIPT+"?action=marcar&nome="+encodeURIComponent(nome)
-      +"&caps="+encodeURIComponent(lote.join(","))+"&done=false",{cache:"no-store"}); }catch(e){}
-  }
+  await _syncCaps(refs,false);
   setStatus("ok"); clearAlert();
 }
 
@@ -662,6 +659,8 @@ async function sincronizar(manual){
     if(!plano && d.plano) aplicarPlano(d.plano,false);
     // Migração de usuários do formato antigo (144 dias)
     if(d.legado_dias && d.legado_dias.length) await migrarLegado(d.legado_dias);
+    // Isolamento por plano: migra chaves antigas (sem "|") para o plano atual
+    if(plano) await _migrarParaPlano();
     salvarCache();
     setStatus("ok"); clearAlert();
     if(plano && document.getElementById("app").style.display==="none") mostrarApp();
@@ -676,27 +675,38 @@ async function sincronizar(manual){
 // adotando o plano oficial (o único que existia até então).
 async function migrarLegado(dias){
   if(!plano) aplicarPlano({tipo:"oficial"},true);
+  const p=pid();
   const oficial=PLANO.map(_normOficial), caps=new Set();
-  dias.forEach(n=>{ const d=oficial[n-1]; if(d) d.refs.forEach(r=>caps.add(r)); });
+  dias.forEach(n=>{ const d=oficial[n-1]; if(d) d.refs.forEach(r=>caps.add(p+"|"+r)); });
   const arr=[...caps], agora=new Date().toISOString();
-  arr.forEach(r=>lidos[r]=agora);
+  arr.forEach(k=>lidos[k]=agora);
   salvarCache();
-  for(let i=0;i<arr.length;i+=120){
-    const lote=arr.slice(i,i+120);
-    try{ await fetch(SCRIPT+"?action=marcar&nome="+encodeURIComponent(nome)+"&caps="+encodeURIComponent(lote.join(","))+"&done=true",{cache:"no-store"}); }catch(e){}
-  }
+  await _syncCaps(arr,true);
   try{ await fetch(SCRIPT+"?action=limpar_legado&nome="+encodeURIComponent(nome),{cache:"no-store"}); }catch(e){}
+}
+
+// Isolamento por plano: capítulos salvos no formato antigo (sem "planoId|")
+// são migrados para o plano atual do usuário, sem perder nada.
+async function _migrarParaPlano(){
+  const bare=Object.keys(lidos).filter(k=>!k.includes("|"));
+  if(!bare.length) return;
+  const p=pid(), novas=[];
+  bare.forEach(k=>{ const nk=p+"|"+k; if(!lidos[nk]) lidos[nk]=lidos[k]; delete lidos[k]; novas.push(nk); });
+  salvarCache();
+  await _syncCaps(novas,true);
+  await _syncCaps(bare,false);
 }
 
 async function toggleDay(dia){
   const d=diaObj(dia); if(!d||!d.refs.length) return;
   const was=isDone(dia);
-  const agora=new Date().toISOString();
-  d.refs.forEach(r=>{ if(was) delete lidos[r]; else lidos[r]=agora; });
+  const agora=new Date().toISOString(), p=pid();
+  const comp=d.refs.map(r=>p+"|"+r);
+  comp.forEach(k=>{ if(was) delete lidos[k]; else lidos[k]=agora; });
   salvarCache(); render();
   try{
     const r=await fetch(SCRIPT+"?action=marcar&nome="+encodeURIComponent(nome)
-      +"&caps="+encodeURIComponent(d.refs.join(","))+"&done="+(!was),{cache:"no-store"});
+      +"&caps="+encodeURIComponent(comp.join(","))+"&done="+(!was),{cache:"no-store"});
     if(!r.ok) throw new Error("HTTP "+r.status);
     const j=await r.json();
     if(j.error) throw new Error(j.error);
@@ -752,8 +762,23 @@ function salvarCache(){
 }
 
 /* Utils */
+// Isolamento por plano: o progresso é guardado com chave "planoId|capítulo",
+// então cada plano tem o seu próprio conjunto de capítulos lidos.
+function planoId(cfg){
+  if(!cfg || cfg.tipo==="oficial") return "oficial";
+  if(cfg.nome) return "preset:"+cfg.nome;
+  return "g:"+cfg.ordem+":"+cfg.modo+":"+(cfg.modo==="ritmo"?("c"+cfg.capsDia):("m"+cfg.meses));
+}
+function pid(){ return plano?planoId(plano.config):""; }
+async function _syncCaps(caps,done){
+  for(let i=0;i<caps.length;i+=120){
+    const lote=caps.slice(i,i+120);
+    try{ await fetch(SCRIPT+"?action=marcar&nome="+encodeURIComponent(nome)
+      +"&caps="+encodeURIComponent(lote.join(","))+"&done="+done,{cache:"no-store"}); }catch(e){}
+  }
+}
 function diaObj(dia){ return plano?plano.dias[dia-1]:null; }
-function isDone(dia){ const d=diaObj(dia); if(!d||!d.refs.length) return false; return d.refs.every(r=>lidos[r]); }
+function isDone(dia){ const d=diaObj(dia); if(!d||!d.refs.length) return false; const p=pid(); return d.refs.every(r=>lidos[p+"|"+r]); }
 function findNext(){ if(!plano)return null; for(const d of plano.dias) if(!isDone(d.dia)) return d; return null; }
 function setStatus(s){
   const dot=document.getElementById("sdot"),txt=document.getElementById("stxt");
@@ -769,7 +794,8 @@ function _ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"
 function calcStreak(){
   // "dias seguidos" = dias de calendário consecutivos em que a pessoa leu algo
   // (baseado nas datas de leitura em `lidos`, não nos índices do plano).
-  const datas=[...new Set(Object.values(lidos).filter(Boolean).map(v=>_ymd(new Date(v))))].sort();
+  const p=pid();
+  const datas=[...new Set(Object.entries(lidos).filter(([k,v])=>v&&k.indexOf(p+"|")===0).map(([,v])=>_ymd(new Date(v))))].sort();
   if(!datas.length) return {streak:0,best:0};
   // recorde: maior sequência de dias consecutivos já feita
   let best=1,run=1;
@@ -793,7 +819,8 @@ function calcForecast(){
   const done=plano.dias.filter(d=>isDone(d.dia)).length;
   if(done<3||done>=total) return null;
   // datas distintas (YYYY-MM-DD) em que houve leitura
-  const datas=[...new Set(Object.values(lidos).filter(Boolean).map(s=>String(s).slice(0,10)))].sort();
+  const p=pid();
+  const datas=[...new Set(Object.entries(lidos).filter(([k,v])=>v&&k.indexOf(p+"|")===0).map(([,v])=>String(v).slice(0,10)))].sort();
   if(datas.length<2) return null;
   const corridoDias=Math.max(1,(new Date(datas[datas.length-1])-new Date(datas[0]))/86400000);
   const ritmo=done/corridoDias; // dias-plano concluídos por dia corrido
@@ -820,7 +847,11 @@ async function carregarRanking(){
       fetch(SCRIPT+"?action=get&nome="+encodeURIComponent(u.nome)).then(r=>r.json()).catch(()=>null)
     ));
     const lista=infos.filter(Boolean).map((u,i)=>{
-      const caps=u.lidos?Object.keys(u.lidos).length:0;
+      const pfx=planoId(u.plano)+"|";
+      const keys=u.lidos?Object.keys(u.lidos):[];
+      const comp=keys.filter(k=>k.includes("|"));
+      // conta só os capítulos do plano atual da pessoa; se ainda não migrou, usa as chaves antigas
+      const caps=comp.length ? comp.filter(k=>k.indexOf(pfx)===0).length : keys.length;
       const total=totalCapsPlano(u.plano)||TOTAL_CAPS;
       const pctNum=total?Math.min(100,caps/total*100):0;
       return {nome:u.nome||d.usuarios[i].nome, caps, pctNum};
