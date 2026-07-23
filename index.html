@@ -883,11 +883,14 @@ function _rankingMsg(msg){
     +`<div style="padding:16px 6px;font-size:13px;color:var(--muted);line-height:1.6;text-align:center">${msg}</div></div>`;
 }
 async function carregarRanking(){
+  const sec=document.getElementById("ranking-sec");
+  const meuPlano=pid(); // só compara com quem está no MESMO plano
+  // ao trocar de plano (ou 1ª vez), mostra "carregando" em vez do ranking antigo
+  if(sec.getAttribute("data-plano")!==meuPlano) _rankingMsg(`<span class="rank-load">⏳ Carregando ranking de <strong>${planoNomeCurto()}</strong>…</span>`);
   try{
     const r=await fetch(SCRIPT+"?action=listar_usuarios",{cache:"no-store"});
     const d=await r.json();
     const usuarios=d.usuarios||[];
-    const meuPlano=pid(); // só compara com quem está no MESMO plano
     // usa 'get' (retorna plano + lidos) para calcular a % relativa ao plano de cada um
     const infos=await Promise.all(usuarios.map(u=>
       fetch(SCRIPT+"?action=get&nome="+encodeURIComponent(u.nome)).then(r=>r.json()).catch(()=>null)
@@ -908,6 +911,7 @@ async function carregarRanking(){
     })
     .filter(u=>u.pidU===meuPlano) // mesmo plano que o usuário atual
     .sort((a,b)=>b.pctNum-a.pctNum || b.caps-a.caps);
+    sec.setAttribute("data-plano", meuPlano); // ranking já é deste plano
     renderRanking(lista);
   }catch(e){
     // se não há nada mostrado ainda, explica que foi falha de conexão
