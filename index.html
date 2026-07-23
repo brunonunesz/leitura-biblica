@@ -404,13 +404,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
   <div class="main">
     <div id="alert-area"></div>
 
-    <!-- HOJE: incentivos em cima, depois a leitura do dia -->
+    <!-- HOJE: incentivos em cima, depois a leitura do dia, depois o calendário -->
     <div class="view" id="view-hoje">
       <div id="streak-area"></div>
-      <div id="cal-area"></div>
       <div id="achiev-area"></div>
       <div id="forecast-area"></div>
       <div id="today-sec"></div>
+      <div id="cal-area"></div>
     </div>
 
     <!-- PLANO: mapa de lido/não-lido em cima, depois os dias -->
@@ -561,13 +561,15 @@ function mostrarApp(){
   document.getElementById("av").textContent=nome.charAt(0).toUpperCase();
   document.getElementById("htitle").textContent=nome;
   document.getElementById("suser").textContent=planoLabel();
-  mostrarView(_view||"hoje");
+  const h=(location.hash||"").replace("#","");
+  mostrarView(["hoje","plano","grupo"].includes(h)?h:(_view||"hoje"));
   render();
   if(medsCache===null) carregarMeds();
 }
 let _view="hoje";
 function mostrarView(v){
   _view=v;
+  try{ history.replaceState(null,"","#"+v); }catch(e){}
   ["hoje","plano","grupo"].forEach(x=>{ const el=document.getElementById("view-"+x); if(el) el.style.display=(x===v)?"block":"none"; });
   document.querySelectorAll(".bnav").forEach(b=>b.classList.toggle("act",b.dataset.v===v));
   window.scrollTo(0,0);
@@ -936,10 +938,10 @@ function _diasLidosSet(){
 function renderCalendario(){
   const el=document.getElementById("cal-area"); if(!el) return;
   const set=_diasLidosSet();
-  const SEM=6;
+  const SEM=4;
   const hoje=new Date(); hoje.setHours(0,0,0,0);
-  const ini=new Date(hoje); ini.setDate(ini.getDate()-(SEM*7-1)); ini.setDate(ini.getDate()-ini.getDay()); // domingo inicial
-  const fim=new Date(hoje); fim.setDate(fim.getDate()+(6-fim.getDay()));                                   // sábado da semana atual
+  const fim=new Date(hoje); fim.setDate(fim.getDate()+(6-fim.getDay()));   // sábado da semana atual
+  const ini=new Date(fim); ini.setDate(ini.getDate()-(SEM*7-1));           // exatamente SEM semanas (começa no domingo)
   const nomes=["D","S","T","Q","Q","S","S"];
   let head=nomes.map(n=>`<div class="cal-hd">${n}</div>`).join("");
   let cells="", lidosN=0, cur=new Date(ini);
