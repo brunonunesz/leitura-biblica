@@ -55,10 +55,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .hdr-left{display:flex;align-items:center;gap:9px;min-width:0;flex:1}
 .avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-bg);border:1.5px solid var(--accent-border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--accent);flex-shrink:0}
 .hdr h1{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hdr-acts{display:flex;gap:5px;flex-shrink:0}
+.hdr-acts{display:flex;gap:5px;flex-shrink:0;align-items:center}
 .ibtn{font-size:12px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:99px;padding:5px 11px;cursor:pointer;white-space:nowrap}
+.ibtn.ico{padding:5px 9px;font-size:14px}
 .ibtn:active{background:var(--border)}
+.sync-h{display:flex;align-items:center;gap:5px;margin-right:2px}
+.stxt-h{font-size:11px;color:var(--muted)}
 .prog-row{display:flex;align-items:center;gap:10px}
+/* barra de navegação inferior (app-like) */
+#bottomnav{position:fixed;bottom:0;left:0;right:0;z-index:50;display:flex;background:var(--surface);border-top:1px solid var(--border);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+.bnav{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;font-size:10.5px;color:var(--muted);cursor:pointer;padding:4px 0;font-weight:600}
+.bnav .bic{font-size:20px;line-height:1;filter:grayscale(.3);opacity:.75}
+.bnav.act{color:var(--accent)}
+.bnav.act .bic{filter:none;opacity:1}
 .prog-bg{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
 .prog-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .4s}
 .prog-txt{font-size:12px;color:var(--muted);white-space:nowrap;min-width:72px;text-align:right}
@@ -349,13 +358,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
       <div class="hdr-top">
         <div class="hdr-left">
           <div class="avatar" id="av">?</div>
-          <h1 id="htitle">Leitura Bíblica</h1>
+          <div style="min-width:0">
+            <h1 id="htitle">Leitura Bíblica</h1>
+            <div id="suser" style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+          </div>
         </div>
         <div class="hdr-acts">
-          <button class="ibtn" onclick="window.location.href='meditacoes.html'" title="Ver meditações da comunidade">📖 Meditações</button>
-          <button class="ibtn" onclick="trocarPlano()" title="Trocar plano de leitura">⚙️ Plano</button>
-          <button class="ibtn" onclick="sincronizar(true)">↻ Sync</button>
-          <button class="ibtn" onclick="sair()">Sair</button>
+          <span class="sync-h"><span class="sdot" id="sdot"></span><span id="stxt" class="stxt-h">…</span></span>
+          <button class="ibtn ico" onclick="trocarPlano()" title="Trocar plano">⚙️</button>
+          <button class="ibtn ico" onclick="sincronizar(true)" title="Sincronizar">↻</button>
+          <button class="ibtn ico" onclick="sair()" title="Sair">⎋</button>
         </div>
       </div>
       <div class="prog-row">
@@ -365,23 +377,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
     </div>
   </div>
 
-  <div class="tabs" id="tabs"></div>
-
   <div class="main">
     <div id="alert-area"></div>
-    <div id="streak-area"></div>
-    <div id="heatmap-area"></div>
-    <div id="forecast-area"></div>
-    <div id="achiev-area"></div>
-    <div id="today-sec"></div>
-    <div id="days-list"></div>
-    <div id="ranking-sec"></div>
+
+    <!-- HOJE -->
+    <div class="view" id="view-hoje">
+      <div id="today-sec"></div>
+      <div id="streak-area"></div>
+      <div id="forecast-area"></div>
+    </div>
+
+    <!-- PLANO -->
+    <div class="view" id="view-plano" style="display:none">
+      <div class="tabs" id="tabs"></div>
+      <div id="days-list"></div>
+      <div id="heatmap-area"></div>
+    </div>
+
+    <!-- GRUPO -->
+    <div class="view" id="view-grupo" style="display:none">
+      <div id="ranking-sec"></div>
+      <div id="achiev-area"></div>
+    </div>
   </div>
 
-  <div class="sbar">
-    <span><span class="sdot" id="sdot"></span><span id="stxt">Conectado</span></span>
-    <span id="suser" style="color:var(--muted)"></span>
-  </div>
+  <nav id="bottomnav">
+    <button class="bnav act" data-v="hoje" onclick="mostrarView('hoje')"><span class="bic">📖</span>Hoje</button>
+    <button class="bnav" data-v="plano" onclick="mostrarView('plano')"><span class="bic">📅</span>Plano</button>
+    <button class="bnav" data-v="grupo" onclick="mostrarView('grupo')"><span class="bic">🏆</span>Grupo</button>
+    <button class="bnav" data-v="med" onclick="window.location.href='meditacoes.html'"><span class="bic">💬</span>Meditações</button>
+  </nav>
 </div>
 
 <script src="biblia.js"></script>
@@ -504,8 +529,18 @@ function mostrarApp(){
   document.getElementById("av").textContent=nome.charAt(0).toUpperCase();
   document.getElementById("htitle").textContent=nome;
   document.getElementById("suser").textContent=planoLabel();
+  mostrarView(_view||"hoje");
   render();
   if(medsCache===null) carregarMeds();
+}
+let _view="hoje";
+function mostrarView(v){
+  _view=v;
+  ["hoje","plano","grupo"].forEach(x=>{ const el=document.getElementById("view-"+x); if(el) el.style.display=(x===v)?"block":"none"; });
+  document.querySelectorAll(".bnav").forEach(b=>b.classList.toggle("act",b.dataset.v===v));
+  window.scrollTo(0,0);
+  // carrega o ranking ao abrir a aba Grupo (se ainda não for deste plano)
+  if(v==="grupo" && document.getElementById("ranking-sec").getAttribute("data-plano")!==pid()) carregarRanking();
 }
 
 /* Meditações que casam com o trecho lido (independe do plano) */
@@ -827,9 +862,10 @@ function isDone(dia){ const d=diaObj(dia); if(!d||!d.refs.length) return false; 
 function findNext(){ if(!plano)return null; for(const d of plano.dias) if(!isDone(d.dia)) return d; return null; }
 function setStatus(s){
   const dot=document.getElementById("sdot"),txt=document.getElementById("stxt");
-  if(s==="ok"){dot.className="sdot";txt.textContent="Sincronizado";}
-  if(s==="off"){dot.className="sdot off";txt.textContent="Offline (cache)";}
-  if(s==="sync"){dot.className="sdot sync";txt.textContent="Sincronizando…";}
+  if(!dot)return;
+  if(s==="ok"){dot.className="sdot";if(txt)txt.textContent="ok";}
+  if(s==="off"){dot.className="sdot off";if(txt)txt.textContent="offline";}
+  if(s==="sync"){dot.className="sdot sync";if(txt)txt.textContent="…";}
 }
 function showAlert(m){document.getElementById("alert-area").innerHTML=`<div class="alert alert-w">${m}</div>`;}
 function clearAlert(){document.getElementById("alert-area").innerHTML="";}
