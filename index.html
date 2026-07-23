@@ -110,6 +110,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 @media(prefers-color-scheme:dark){.b-at{background:#451a03;color:#fbbf24}.b-nt{background:#1e1b4b;color:#a5b4fc}.b-sl{background:#500724;color:#f9a8d4}}
 .rlink{font-size:15px;font-weight:600;color:var(--accent);text-decoration:none}
 .rlink:hover{text-decoration:underline}
+.capchips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px 34px}
+.capchip{min-width:30px;height:30px;padding:0 8px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;transition:all .12s}
+.capchip:active{transform:scale(.92)}
+.capchip.on{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.cap-prog{font-size:12px;color:var(--muted);margin:0 0 10px 2px}
 .done-btn{width:100%;padding:13px;border-radius:var(--r);border:none;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;margin-bottom:12px}
 .done-btn.pend{background:var(--accent);color:#fff}
 .done-btn.pend:active{opacity:.85}
@@ -554,6 +559,14 @@ function planoLabel(){
   const dur=c.modo==="ritmo"?(c.capsDia+" cap/dia"):(c.meses+" meses");
   return (ORDEM_NOMES[c.ordem]||"Personalizado").split(" (")[0]+" · "+dur+" · "+plano.total_dias+" dias";
 }
+// nome curto do plano ativo (título do ranking)
+function planoNomeCurto(){
+  if(!plano)return"";
+  if(plano.oficial)return"Plano IBJP";
+  const c=plano.config;
+  if(c.nome)return c.nome;
+  return (ORDEM_NOMES[c.ordem]||"Personalizado").split(" (")[0];
+}
 function mostrarChooser(){
   document.getElementById("setup").classList.remove("on");
   document.getElementById("app").style.display="none";
@@ -623,6 +636,7 @@ function confirmarPlano(){
             : lerConfigCustom();
   aplicarPlano(cfg,true);
   mostrarApp();
+  carregarRanking(); // atualiza o ranking para o plano recém-escolhido
 }
 function trocarPlano(){ mostrarChooser(); }
 
@@ -715,6 +729,37 @@ async function toggleDay(dia){
     setStatus("off");
     showAlert("Salvo localmente. Sincronize quando tiver conexão.");
   }
+}
+
+// marca/desmarca UM capítulo (para ler em partes ao longo do dia)
+function isCapDone(ref){ return !!lidos[pid()+"|"+ref]; }
+async function toggleCap(ref){
+  const k=pid()+"|"+ref;
+  const was=!!lidos[k];
+  if(was) delete lidos[k]; else lidos[k]=new Date().toISOString();
+  salvarCache(); render();
+  try{
+    const r=await fetch(SCRIPT+"?action=marcar&nome="+encodeURIComponent(nome)
+      +"&caps="+encodeURIComponent(k)+"&done="+(!was),{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(j.error) throw new Error(j.error);
+    setStatus("ok"); clearAlert();
+  } catch(e){ setStatus("off"); showAlert("Salvo localmente. Sincronize quando tiver conexão."); }
+}
+// chips de capítulos de um bloco (ex.: "Gênesis 1–5" -> 1 2 3 4 5)
+function chipsBloco(bloco){
+  const m=bloco.url.match(/\/129\/([0-9A-Z]+)\.(\d+)/);
+  if(!m) return "";
+  const code=m[1], ini=+m[2];
+  let fim=ini+(bloco.caps||1)-1;
+  if(!bloco.caps){ // planos oficiais não têm 'caps': pega o fim do texto ("Gênesis 1–5" -> 5)
+    const nums=bloco.ref.match(/\d+/g);
+    if(nums&&nums.length){ const last=+nums[nums.length-1]; if(last>=ini) fim=last; }
+  }
+  let chips="";
+  for(let c=ini;c<=fim;c++){ const ref=code+"."+c; chips+=`<span class="capchip${isCapDone(ref)?" on":""}" onclick="toggleCap('${ref}')">${c}</span>`; }
+  return `<div class="capchips">${chips}</div>`;
 }
 
 async function salvarNota(dia){
@@ -841,21 +886,28 @@ async function carregarRanking(){
   try{
     const r=await fetch(SCRIPT+"?action=listar_usuarios",{cache:"no-store"});
     const d=await r.json();
-    if(!d.usuarios||d.usuarios.length<2){ _rankingMsg("👥 O ranking do grupo aparece quando houver <strong>2 ou mais pessoas</strong> lendo. Convide alguém para ler junto! 📖"); return; }
+    const usuarios=d.usuarios||[];
+    const meuPlano=pid(); // só compara com quem está no MESMO plano
     // usa 'get' (retorna plano + lidos) para calcular a % relativa ao plano de cada um
-    const infos=await Promise.all(d.usuarios.map(u=>
+    const infos=await Promise.all(usuarios.map(u=>
       fetch(SCRIPT+"?action=get&nome="+encodeURIComponent(u.nome)).then(r=>r.json()).catch(()=>null)
     ));
     const lista=infos.filter(Boolean).map((u,i)=>{
-      const pfx=planoId(u.plano)+"|";
+      const un=u.nome||usuarios[i].nome;
+      // o próprio usuário usa o plano local (evita sumir enquanto o servidor ainda salva a troca)
+      const ehEu=un&&nome&&un.toLowerCase()===nome.toLowerCase();
+      const pidU=ehEu?meuPlano:planoId(u.plano);
+      const pfx=pidU+"|";
       const keys=u.lidos?Object.keys(u.lidos):[];
       const comp=keys.filter(k=>k.includes("|"));
       // conta só os capítulos do plano atual da pessoa; se ainda não migrou, usa as chaves antigas
       const caps=comp.length ? comp.filter(k=>k.indexOf(pfx)===0).length : keys.length;
-      const total=totalCapsPlano(u.plano)||TOTAL_CAPS;
+      const total=(ehEu&&plano?totalCapsPlano(plano.config):totalCapsPlano(u.plano))||TOTAL_CAPS;
       const pctNum=total?Math.min(100,caps/total*100):0;
-      return {nome:u.nome||d.usuarios[i].nome, caps, pctNum};
-    }).sort((a,b)=>b.pctNum-a.pctNum || b.caps-a.caps);
+      return {nome:un, caps, pctNum, pidU};
+    })
+    .filter(u=>u.pidU===meuPlano) // mesmo plano que o usuário atual
+    .sort((a,b)=>b.pctNum-a.pctNum || b.caps-a.caps);
     renderRanking(lista);
   }catch(e){
     // se não há nada mostrado ainda, explica que foi falha de conexão
@@ -865,7 +917,7 @@ async function carregarRanking(){
 }
 
 function renderRanking(lista){
-  if(!lista||lista.length<2){ _rankingMsg("👥 O ranking do grupo aparece quando houver <strong>2 ou mais pessoas</strong> lendo. Convide alguém para ler junto! 📖"); return; }
+  if(!lista||lista.length<2){ _rankingMsg(`👥 O ranking aparece quando houver <strong>2 ou mais pessoas no mesmo plano que você</strong> (${planoNomeCurto()}). Convide alguém para ler o mesmo plano! 📖`); return; }
   const medal=["g","s","b"];
   const pos=["1°","2°","3°"];
   const rows=lista.map((u,i)=>{
@@ -883,7 +935,7 @@ function renderRanking(lista){
     </div>`;
   }).join("");
   document.getElementById("ranking-sec").innerHTML=
-    `<div class="rank-card"><div class="rank-title">Progresso do grupo</div>${rows}</div>`;
+    `<div class="rank-card"><div class="rank-title">Progresso do grupo · ${planoNomeCurto()}</div>${rows}</div>`;
 }
 
 /* Render */
@@ -984,9 +1036,11 @@ function renderToday(){
     return;
   }
   const done=isDone(next.dia);
-  const atH=next.at.map(r=>`<div class="r-row"><span class="rbadge b-at">AT</span><a class="rlink" href="${r.url}" target="_blank" rel="noopener">${r.ref}</a></div>`).join("");
-  const ntH=next.nt.map(r=>`<div class="r-row"><span class="rbadge b-nt">NT</span><a class="rlink" href="${r.url}" target="_blank" rel="noopener">${r.ref}</a></div>`).join("");
-  const slH=next.salmo?`<div class="r-row"><span class="rbadge b-sl">Sl</span><a class="rlink" href="${next.salmo_url}" target="_blank" rel="noopener">Salmo ${next.salmo}</a></div>`:"";
+  const atH=next.at.map(r=>`<div class="r-row"><span class="rbadge b-at">AT</span><a class="rlink" href="${r.url}" target="_blank" rel="noopener">${r.ref}</a></div>${chipsBloco(r)}`).join("");
+  const ntH=next.nt.map(r=>`<div class="r-row"><span class="rbadge b-nt">NT</span><a class="rlink" href="${r.url}" target="_blank" rel="noopener">${r.ref}</a></div>${chipsBloco(r)}`).join("");
+  const slH=next.salmo?`<div class="r-row"><span class="rbadge b-sl">Sl</span><a class="rlink" href="${next.salmo_url}" target="_blank" rel="noopener">Salmo ${next.salmo}</a></div><div class="capchips"><span class="capchip${isCapDone("PSA."+next.salmo)?" on":""}" onclick="toggleCap('PSA.${next.salmo}')">${next.salmo}</span></div>`:"";
+  const lidosDia=next.refs.filter(isCapDone).length, totDia=next.refs.length;
+  const capProg=totDia>1?`<div class="cap-prog">${lidosDia===totDia?"✓ ":""}${lidosDia}/${totDia} capítulos lidos · toque nos números para marcar o que já leu</div>`:"";
 
   // Versículo
   let verH="";
@@ -1071,8 +1125,9 @@ function renderToday(){
       <div class="today-title">${tituloDia}</div>
       <div class="today-sub">${next.blocoNome||""}</div>
       <div class="readings">${atH}${ntH}${slH}</div>
+      ${capProg}
       <button class="done-btn ${done?"comp":"pend"}" onclick="toggleDay(${next.dia})">
-        ${done?"✓ Lido — toque para desfazer":"Marcar como lido"}
+        ${done?"✓ Dia lido — toque para desfazer":(totDia>1?"Marcar o dia todo como lido":"Marcar como lido")}
       </button>
       ${verH}${connH}${novoH}${ctxH}${medsH}${notaH}
     </div>`;
