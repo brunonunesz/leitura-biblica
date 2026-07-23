@@ -105,6 +105,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .hm-legend{display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--muted)}
 .hm-legend span{display:flex;align-items:center;gap:5px}
 .hm-sw{width:11px;height:11px;border-radius:2px;display:inline-block;flex-shrink:0}
+/* calendário de atividade */
+.cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:12px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-hd{font-size:10px;font-weight:700;color:var(--muted);text-align:center;padding-bottom:2px}
+.cal-c{aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+.cal-off{background:var(--bg);border:1px solid var(--border);color:var(--muted)}
+.cal-on{background:var(--green);border:1px solid var(--green);color:#fff}
+.cal-fut{background:transparent;border:none}
+.cal-hoje{outline:2px solid var(--accent);outline-offset:1px}
+.cal-sw{width:11px;height:11px;border-radius:3px;display:inline-block;flex-shrink:0}
+.cal-sw.cal-off{background:var(--bg)}
+.cal-sw.cal-on{background:var(--green)}
 .hm-1{background:#bbf7d0}
 .hm-2{background:#4ade80}
 .hm-3{background:var(--green)}
@@ -388,6 +400,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
     <!-- HOJE: incentivos em cima, depois a leitura do dia -->
     <div class="view" id="view-hoje">
       <div id="streak-area"></div>
+      <div id="cal-area"></div>
       <div id="achiev-area"></div>
       <div id="forecast-area"></div>
       <div id="today-sec"></div>
@@ -906,6 +919,38 @@ function calcStreak(){
   return {streak,best};
 }
 
+// conjunto de dias (YYYY-MM-DD) em que a pessoa leu algo NO PLANO ATIVO
+function _diasLidosSet(){
+  const p=pid(), set=new Set();
+  Object.entries(lidos).forEach(([k,v])=>{ if(v&&k.indexOf(p+"|")===0) set.add(_ymd(new Date(v))); });
+  return set;
+}
+// calendário de atividade: quais dias de calendário a pessoa leu (últimas ~6 semanas)
+function renderCalendario(){
+  const el=document.getElementById("cal-area"); if(!el) return;
+  const set=_diasLidosSet();
+  const SEM=6;
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const ini=new Date(hoje); ini.setDate(ini.getDate()-(SEM*7-1)); ini.setDate(ini.getDate()-ini.getDay()); // domingo inicial
+  const fim=new Date(hoje); fim.setDate(fim.getDate()+(6-fim.getDay()));                                   // sábado da semana atual
+  const nomes=["D","S","T","Q","Q","S","S"];
+  let head=nomes.map(n=>`<div class="cal-hd">${n}</div>`).join("");
+  let cells="", lidosN=0, cur=new Date(ini);
+  while(cur<=fim){
+    const ymd=_ymd(cur), futuro=cur>hoje, lido=set.has(ymd), ehHoje=ymd===_ymd(hoje);
+    if(lido) lidosN++;
+    const cls="cal-c "+(futuro?"cal-fut":(lido?"cal-on":"cal-off"))+(ehHoje?" cal-hoje":"");
+    const tt=cur.toLocaleDateString("pt-BR",{weekday:"short",day:"numeric",month:"short"})+(lido?" · leu ✓":(futuro?"":" · não leu"));
+    cells+=`<div class="${cls}" title="${tt}">${futuro?"":cur.getDate()}</div>`;
+    cur.setDate(cur.getDate()+1);
+  }
+  el.innerHTML=`<div class="cal-wrap">
+    <div class="hm-title">Sua atividade · dias que você leu (${lidosN} nas últimas ${SEM} semanas)</div>
+    <div class="cal-grid">${head}${cells}</div>
+    <div class="hm-legend"><span><i class="cal-sw cal-on"></i> leu</span><span><i class="cal-sw cal-off"></i> não leu</span></div>
+  </div>`;
+}
+
 function calcForecast(){
   if(!plano) return null;
   const total=plano.total_dias;
@@ -1076,6 +1121,9 @@ function render(){
     </div>`;
   }).join("");
   document.getElementById("achiev-area").innerHTML=`<div class="achiev-box">${achs}</div>`;
+
+  // Calendário de atividade (dias que leu)
+  renderCalendario();
 
   // Today
   renderToday();
