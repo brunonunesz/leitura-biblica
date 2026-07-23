@@ -73,7 +73,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .prog-txt{font-size:12px;color:var(--muted);white-space:nowrap;min-width:72px;text-align:right}
 
 /* Tabs */
-.tabs{display:flex;gap:5px;padding:12px 18px 0;max-width:640px;margin:0 auto;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs{display:flex;gap:5px;padding:0 0 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tab{flex-shrink:0;padding:6px 13px;border-radius:99px;font-size:13px;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all .15s}
 .tab.act{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -100,6 +100,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .heatmap{display:grid;grid-template-columns:repeat(24,1fr);gap:3px}
 .hm-c{border-radius:2px;aspect-ratio:1}
 .hm-0{background:var(--border)}
+.hm-legend{display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--muted)}
+.hm-legend span{display:flex;align-items:center;gap:5px}
+.hm-sw{width:11px;height:11px;border-radius:2px;display:inline-block;flex-shrink:0}
 .hm-1{background:#bbf7d0}
 .hm-2{background:#4ade80}
 .hm-3{background:var(--green)}
@@ -194,7 +197,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 /* Days */
 .week-sec{margin-bottom:16px}
 .week-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:7px;padding:0 2px}
-.day-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;margin-bottom:6px;display:flex;align-items:center;gap:11px;cursor:pointer;-webkit-user-select:none;user-select:none;transition:border-color .15s}
+.day-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:9px;display:flex;align-items:center;gap:11px;cursor:pointer;-webkit-user-select:none;user-select:none;transition:border-color .15s}
 .day-card:active{opacity:.75}
 .day-card.done{background:var(--green-bg);border-color:var(--green-border)}
 .day-card.nxt{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
@@ -380,24 +383,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
   <div class="main">
     <div id="alert-area"></div>
 
-    <!-- HOJE -->
+    <!-- HOJE: incentivos em cima, depois a leitura do dia -->
     <div class="view" id="view-hoje">
-      <div id="today-sec"></div>
       <div id="streak-area"></div>
+      <div id="achiev-area"></div>
       <div id="forecast-area"></div>
+      <div id="today-sec"></div>
     </div>
 
-    <!-- PLANO -->
+    <!-- PLANO: mapa de lido/não-lido em cima, depois os dias -->
     <div class="view" id="view-plano" style="display:none">
+      <div id="heatmap-area"></div>
       <div class="tabs" id="tabs"></div>
       <div id="days-list"></div>
-      <div id="heatmap-area"></div>
     </div>
 
     <!-- GRUPO -->
     <div class="view" id="view-grupo" style="display:none">
       <div id="ranking-sec"></div>
-      <div id="achiev-area"></div>
     </div>
   </div>
 
@@ -438,7 +441,7 @@ const CONQUISTAS = [
 /* ═══════════ Motor de plano ativo (oficial ou gerado) ═══════════ */
 // extrai refs de capítulo de uma leitura do plano oficial (url + ref textual)
 function _refsDeLeitura(e){
-  const m=e.url.match(/\/129\/([0-9A-Z]+)\.(\d+)/);
+  const m=e.url.match(/\/bible\/\d+\/([0-9A-Z]+)\.(\d+)/);
   if(!m)return[];
   const code=m[1],ini=+m[2],nums=e.ref.match(/\d+/g);
   let fim=ini; if(nums&&nums.length){const last=+nums[nums.length-1];if(last>=ini)fim=last;}
@@ -449,7 +452,14 @@ function _normOficial(d){
   d.at.forEach(e=>refs.push(..._refsDeLeitura(e)));
   d.nt.forEach(e=>refs.push(..._refsDeLeitura(e)));
   if(d.salmo)refs.push("PSA."+d.salmo);
-  return Object.assign({},d,{refs,bloco:d.mes,blocoNome:d.mes_nome,diaLabel:d.dia_semana});
+  // reescreve os links do plano oficial (que têm NVI fixo) para a versão atual (NVT)
+  return Object.assign({},d,{
+    refs,
+    at:d.at.map(e=>Object.assign({},e,{url:reVersao(e.url)})),
+    nt:d.nt.map(e=>Object.assign({},e,{url:reVersao(e.url)})),
+    salmo_url:reVersao(d.salmo_url),
+    bloco:d.mes,blocoNome:d.mes_nome,diaLabel:d.dia_semana
+  });
 }
 function _enriquecerGerado(d){
   const bloco=Math.floor((d.dia-1)/30)+1;
@@ -784,7 +794,7 @@ async function toggleCap(ref){
 }
 // chips de capítulos de um bloco (ex.: "Gênesis 1–5" -> 1 2 3 4 5)
 function chipsBloco(bloco){
-  const m=bloco.url.match(/\/129\/([0-9A-Z]+)\.(\d+)/);
+  const m=bloco.url.match(/\/bible\/\d+\/([0-9A-Z]+)\.(\d+)/);
   if(!m) return "";
   const code=m[1], ini=+m[2];
   let fim=ini+(bloco.caps||1)-1;
@@ -1031,15 +1041,19 @@ function render(){
       </div>
     </div>`;
 
-  // Heatmap
+  // Heatmap (visão de dias lidos x não lidos)
   const N=plano.total_dias;
-  let hm="";
+  let hm="", doneN=0;
   for(let i=1;i<=N;i++){
-    const cl=isDone(i)?"hm-3":"hm-0";
-    hm+=`<div class="hm-c ${cl}" title="Dia ${i}"></div>`;
+    const feito=isDone(i); if(feito)doneN++;
+    hm+=`<div class="hm-c ${feito?"hm-3":"hm-0"}" title="Dia ${i}${feito?" · lido":""}"></div>`;
   }
   document.getElementById("heatmap-area").innerHTML=
-    `<div class="hm-wrap"><div class="hm-title">Mapa de leitura — ${N} dias</div><div class="heatmap">${hm}</div></div>`;
+    `<div class="hm-wrap">
+       <div class="hm-title">Mapa de leitura · ${doneN} de ${N} dias lidos</div>
+       <div class="heatmap">${hm}</div>
+       <div class="hm-legend"><span><i class="hm-sw hm-3"></i> lido</span><span><i class="hm-sw hm-0"></i> não lido</span></div>
+     </div>`;
 
   // Previsão
   const fc=calcForecast();

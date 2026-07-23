@@ -55,13 +55,18 @@ const ORDENS={
   evangelhos:()=>({streams:[_refsDeLivros(["MAT","MRK","LUK","JHN"])]}),
 };
 const ORDEM_NOMES={sequencial:"Sequencial (Gênesis → Apocalipse)",intercalado:"Intercalado (AT + NT juntos)",cronologica:"Cronológica (ordem dos eventos)",nt:"Só Novo Testamento",evangelhos:"Só os Evangelhos"};
+// Versão bíblica no bible.com — NVT (Nova Versão Transformadora), id 1930
+const BIBLE_VER=1930, BIBLE_ABREV="NVT";
+function bibleUrl(code,cap){ return `https://www.bible.com/pt/bible/${BIBLE_VER}/${code}.${cap}.${BIBLE_ABREV}`; }
+// reescreve qualquer url do bible.com para a versão atual (usado no plano oficial, que tinha NVI fixo)
+function reVersao(url){ return String(url||"").replace(/\/bible\/\d+\/([0-9A-Z]+\.\d+)\.[A-Z]+/, `/bible/${BIBLE_VER}/$1.${BIBLE_ABREV}`); }
 // distribui Ls itens em D dias espalhando o resto (Bresenham)
 function _tamanhos(Ls,D){const out=[];for(let i=0;i<D;i++)out.push(Math.floor((i+1)*Ls/D)-Math.floor(i*Ls/D));return out;}
 function _comprimir(refs){
   const bl=[];
   for(const r of refs){const[id,cs]=r.split(".");const cap=+cs,b=_BOOK[id],u=bl[bl.length-1];
     if(u&&u.id===id&&cap===u.fim+1)u.fim=cap;else bl.push({id,nome:b.nome,test:b.test,ini:cap,fim:cap});}
-  return bl.map(b=>({livro:b.nome,test:b.test,ref:b.ini===b.fim?`${b.nome} ${b.ini}`:`${b.nome} ${b.ini}–${b.fim}`,url:`https://www.bible.com/pt/bible/129/${b.id}.${b.ini}.NVI`,caps:b.fim-b.ini+1}));
+  return bl.map(b=>({livro:b.nome,test:b.test,ref:b.ini===b.fim?`${b.nome} ${b.ini}`:`${b.nome} ${b.ini}–${b.fim}`,url:bibleUrl(b.id,b.ini),caps:b.fim-b.ini+1}));
 }
 // Capítulos "gigantes" (muitos versículos) — no modo progressivo eles ficam
 // sozinhos no dia para não pesar. ref → nº de versículos (aprox., p/ ponderar).
