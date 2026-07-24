@@ -264,6 +264,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 </head>
 <body>
 
+<!-- Aviso de migração para o app da Igreja (Koinonia) -->
+<div id="migra-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:18px;overflow:auto">
+  <div class="s-card" style="max-width:430px;text-align:left">
+    <div style="font-size:34px;text-align:center">📢</div>
+    <h1 style="font-size:20px;text-align:center">O Plano de Leitura mudou de casa!</h1>
+    <p style="text-align:center">Agora ele faz parte do <strong>app da Igreja (IBJP)</strong>. Migre pra continuar sua leitura e seu progresso por lá 🙌</p>
+
+    <div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:10px;padding:12px 14px;margin-top:6px">
+      <div style="font-weight:700;color:var(--accent);font-size:13px;margin-bottom:4px">✅ Já tem conta no app da igreja?</div>
+      <div style="font-size:13px;line-height:1.6">No app, toque em <strong>“Primeiro acesso”</strong> — você recebe um <strong>link para criar sua senha</strong>. Depois é só entrar.</div>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:10px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:4px">🆕 Ainda não tem conta?</div>
+      <div style="font-size:13px;line-height:1.6">Fale com o <strong>Bruno Nunes</strong> e passe seu <strong>e-mail</strong> e <strong>data de nascimento</strong> para ele te cadastrar. Depois, faça o primeiro acesso.</div>
+    </div>
+
+    <a class="s-btn" href="https://ibjp.tech/leitura?igreja=ibjp" style="display:block;text-align:center;text-decoration:none;margin-top:16px">Ir para o app da igreja →</a>
+    <button class="s-btn" style="background:transparent;color:var(--muted);border:1px solid var(--border);margin-top:8px" onclick="fecharMigracao()">Continuar aqui por enquanto</button>
+  </div>
+</div>
+
 <!-- Setup -->
 <div id="setup" class="on">
   <div class="s-icon">✝</div>
@@ -1281,6 +1303,12 @@ function renderDays(){
 
 // PWA: registra o service worker (offline + instalável)
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+/* Aviso de migração para o app da Igreja — mostra 1x por sessão */
+function fecharMigracao(){ document.getElementById("migra-modal").style.display="none"; try{sessionStorage.setItem("migra_visto","1");}catch(e){} }
+function abrirMigracao(){ document.getElementById("migra-modal").style.display="flex"; }
+try{ if(!sessionStorage.getItem("migra_visto")) abrirMigracao(); }catch(e){ abrirMigracao(); }
+
 init();
 </script>
 </body>
