@@ -271,7 +271,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
     <h1 style="font-size:20px;text-align:center">O Plano de Leitura mudou de casa!</h1>
     <p style="text-align:center">Agora ele faz parte do <strong>app da Igreja (IBJP)</strong>. Migre pra continuar sua leitura e seu progresso por lá 🙌</p>
 
-    <div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:10px;padding:12px 14px;margin-top:6px">
+    <div style="background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:12.5px;text-align:center;font-weight:600">⚠️ Se você <u>não migrar agora</u>, seu progresso <u>não será migrado depois</u>.</div>
+
+    <div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:10px;padding:12px 14px;margin-top:10px">
       <div style="font-weight:700;color:var(--accent);font-size:13px;margin-bottom:4px">✅ Já tem conta no app da igreja?</div>
       <div style="font-size:13px;line-height:1.6">No app, toque em <strong>“Primeiro acesso”</strong> — você recebe um <strong>link para criar sua senha</strong>. Depois é só entrar.</div>
     </div>
@@ -279,6 +281,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:10px">
       <div style="font-weight:700;font-size:13px;margin-bottom:4px">🆕 Ainda não tem conta?</div>
       <div style="font-size:13px;line-height:1.6">Fale com o <strong>Bruno Nunes</strong> e passe seu <strong>e-mail</strong> e <strong>data de nascimento</strong> para ele te cadastrar. Depois, faça o primeiro acesso.</div>
+      <a id="wpp-bruno" class="s-btn" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-top:10px;background:#25D366;color:#fff;padding:11px;font-size:14px">📲 Chamar o Bruno no WhatsApp</a>
     </div>
 
     <a class="s-btn" href="https://ibjp.tech/leitura?igreja=ibjp" style="display:block;text-align:center;text-decoration:none;margin-top:16px">Ir para o app da igreja →</a>
@@ -1304,10 +1307,14 @@ function renderDays(){
 // PWA: registra o service worker (offline + instalável)
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 
-/* Aviso de migração para o app da Igreja — mostra 1x por sessão */
-function fecharMigracao(){ document.getElementById("migra-modal").style.display="none"; try{sessionStorage.setItem("migra_visto","1");}catch(e){} }
+/* Aviso de migração para o app da Igreja — aparece em toda entrada (insistente) */
+function fecharMigracao(){ document.getElementById("migra-modal").style.display="none"; }
 function abrirMigracao(){ document.getElementById("migra-modal").style.display="flex"; }
-try{ if(!sessionStorage.getItem("migra_visto")) abrirMigracao(); }catch(e){ abrirMigracao(); }
+(function(){
+  const w=document.getElementById("wpp-bruno");
+  if(w){ const msg="Olá Bruno! Quero migrar para o app da igreja (Plano de Leitura). Meu e-mail e minha data de nascimento para cadastro são:"; w.href="https://wa.me/5513981317608?text="+encodeURIComponent(msg); }
+})();
+abrirMigracao();
 
 init();
 </script>
